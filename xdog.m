@@ -40,5 +40,5 @@ for idx = 1:numel(imagefiles)
     % figure, imshow(mat2gray(differencedIm2));
 
     %create XDoG Filtered Image and the thresholded one
-    imwrite(mat2gray(differencedIm2), strcat('bwimages/', imagename ,'.jpg'));
+    imwrite(mat2gray(differencedIm2), strcat('bwimages/', imagename));
 end
