@@ -2,7 +2,6 @@ import numpy as np
 import glob, pickle
 import os, sys
 import argparse
-import cv2
 from keras.models import Sequential, Model
 from keras.layers import Dense, Input, merge
 from keras.layers import Reshape
@@ -17,6 +16,8 @@ from PIL import Image
 from keras import backend as K
 from keras.layers.normalization import BatchNormalization
 import math
+from scipy.misc import imread
+from scipy.misc import imsave
 
 K.set_image_dim_ordering('th')
 
@@ -37,71 +38,71 @@ def generator_model():
     # U-Net structure, must change to relu
     inputs = Input((IN_CH, img_cols, img_rows))
 
-    e1 = BatchNormalization(mode=2)(inputs)
+    e1 = BatchNormalization()(inputs)
     e1 = Convolution2D(64, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e1)
-    e1 = BatchNormalization(mode=2)(e1)
+    e1 = BatchNormalization()(e1)
     e2 = Convolution2D(128, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e1)
-    e2 = BatchNormalization(mode=2)(e2)
+    e2 = BatchNormalization()(e2)
 
     e3 = Convolution2D(256, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e2)
-    e3 = BatchNormalization(mode=2)(e3)
+    e3 = BatchNormalization()(e3)
     e4 = Convolution2D(512, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e3)
-    e4 = BatchNormalization(mode=2)(e4)
+    e4 = BatchNormalization()(e4)
 
     e5 = Convolution2D(512, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e4)
-    e5 = BatchNormalization(mode=2)(e5)
+    e5 = BatchNormalization()(e5)
     e6 = Convolution2D(512, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e5)
-    e6 = BatchNormalization(mode=2)(e6)
+    e6 = BatchNormalization()(e6)
 
     e7 = Convolution2D(512, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e6)
-    e7 = BatchNormalization(mode=2)(e7)
+    e7 = BatchNormalization()(e7)
     e8 = Convolution2D(512, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e7)
-    e8 = BatchNormalization(mode=2)(e8)
+    e8 = BatchNormalization()(e8)
 
     d1 = Deconvolution2D(512, 5, 5, subsample=(2, 2), activation='relu', init='uniform', output_shape=(None, 512, 2, 2),
                          border_mode='same')(e8)
     d1 = merge([d1, e7], mode='concat', concat_axis=1)
-    d1 = BatchNormalization(mode=2)(d1)
+    d1 = BatchNormalization()(d1)
 
     d2 = Deconvolution2D(512, 5, 5, subsample=(2, 2), activation='relu', init='uniform', output_shape=(None, 512, 4, 4),
                          border_mode='same')(d1)
     d2 = merge([d2, e6], mode='concat', concat_axis=1)
-    d2 = BatchNormalization(mode=2)(d2)
+    d2 = BatchNormalization()(d2)
 
     d3 = Dropout(0.2)(d2)
     d3 = Deconvolution2D(512, 5, 5, subsample=(2, 2), activation='relu', init='uniform', output_shape=(None, 512, 8, 8),
                          border_mode='same')(d3)
     d3 = merge([d3, e5], mode='concat', concat_axis=1)
-    d3 = BatchNormalization(mode=2)(d3)
+    d3 = BatchNormalization()(d3)
 
     d4 = Dropout(0.2)(d3)
     d4 = Deconvolution2D(512, 5, 5, subsample=(2, 2), activation='relu', init='uniform',
                          output_shape=(None, 512, 16, 16), border_mode='same')(d4)
     d4 = merge([d4, e4], mode='concat', concat_axis=1)
-    d4 = BatchNormalization(mode=2)(d4)
+    d4 = BatchNormalization()(d4)
 
     d5 = Dropout(0.2)(d4)
     d5 = Deconvolution2D(256, 5, 5, subsample=(2, 2), activation='relu', init='uniform',
                          output_shape=(None, 256, 32, 32), border_mode='same')(d5)
     d5 = merge([d5, e3], mode='concat', concat_axis=1)
-    d5 = BatchNormalization(mode=2)(d5)
+    d5 = BatchNormalization()(d5)
 
     d6 = Dropout(0.2)(d5)
     d6 = Deconvolution2D(128, 5, 5, subsample=(2, 2), activation='relu', init='uniform',
                          output_shape=(None, 128, 64, 64), border_mode='same')(d6)
     d6 = merge([d6, e2], mode='concat', concat_axis=1)
-    d6 = BatchNormalization(mode=2)(d6)
+    d6 = BatchNormalization()(d6)
 
     d7 = Dropout(0.2)(d6)
     d7 = Deconvolution2D(64, 5, 5, subsample=(2, 2), activation='relu', init='uniform',
                          output_shape=(None, 64, 128, 128), border_mode='same')(d7)
     d7 = merge([d7, e1], mode='concat', concat_axis=1)
 
-    d7 = BatchNormalization(mode=2)(d7)
+    d7 = BatchNormalization()(d7)
     d8 = Deconvolution2D(3, 5, 5, subsample=(2, 2), activation='relu', init='uniform', output_shape=(None, 3, 256, 256),
                          border_mode='same')(d7)
 
-    d8 = BatchNormalization(mode=2)(d8)
+    d8 = BatchNormalization()(d8)
     d9 = Activation('tanh')(d8)
 
     model = Model(input=inputs, output=d9)
@@ -112,18 +113,18 @@ def discriminator_model():
     """ return a (b, 1) logits"""
     model = Sequential()
     model.add(Convolution2D(64, 4, 4, border_mode='same', input_shape=(IN_CH * 2, img_cols, img_rows)))
-    model.add(BatchNormalization(mode=2))
+    model.add(BatchNormalization())
     model.add(Activation('tanh'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Convolution2D(128, 4, 4, border_mode='same'))
-    model.add(BatchNormalization(mode=2))
+    model.add(BatchNormalization())
     model.add(Activation('tanh'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Convolution2D(512, 4, 4, border_mode='same'))
-    model.add(BatchNormalization(mode=2))
+    model.add(BatchNormalization())
     model.add(Activation('tanh'))
     model.add(Convolution2D(1, 4, 4, border_mode='same'))
-    model.add(BatchNormalization(mode=2))
+    model.add(BatchNormalization())
     model.add(Activation('tanh'))
 
     model.add(Activation('sigmoid'))
@@ -203,7 +204,7 @@ def train(BATCH_SIZE):
                 image = combine_images(generated_images)
                 image = image * 127.5 + 127.5
                 image = np.swapaxes(image, 0, 2)
-                cv2.imwrite(str(epoch) + "_" + str(index) + ".png", image)
+                imsave(str(epoch) + "_" + str(index) + ".png", image)
                 # Image.fromarray(image.astype(np.uint8)).save(str(epoch)+"_"+str(index)+".png")
 
             real_pairs = np.concatenate((X_train[index * BATCH_SIZE:(index + 1) * BATCH_SIZE, :, :, :], image_batch),
@@ -254,21 +255,21 @@ def generate(BATCH_SIZE, nice=False):
         image = combine_images(generated_images)
     image = image * 127.5 + 127.5
     image = np.swapaxes(image, 0, 2)
-    cv2.imwrite('generated.png', image)
+    imsave('generated.png', image)
 
 
 def get_data(sketchdir, cartoondir=None):
     sketches = glob.glob(os.path.join(sketchdir, '*.jpg'))
     data_X = np.zeros((len(sketches), 3, img_cols, img_rows))
     for i in range(0,len(sketches)):
-        data_X[i, :, :, :] = cv2.imread(sketches[i], cv2.IMREAD_COLOR)
+        data_X[i, :, :, :] = np.swapaxes(imread(sketches[i], mode='RGB'),0,2)
 
     data_Y = []
     if cartoondir:
         cartoons = glob.glob(os.path.join(cartoondir, '*.jpg'))
         data_Y = np.zeros((len(cartoons), 3, img_cols, img_rows))
         for i in range(0, len(sketches)):
-            data_Y[i, :, :, :] = cv2.imread(cartoons[i], cv2.IMREAD_COLOR)
+            data_Y[i, :, :, :] = np.swapaxes(imread(cartoons[i], mode='RGB'),0,2)
     return data_X, data_Y
 
 
@@ -284,5 +285,5 @@ if __name__ == '__main__':
     # gen = generator_model()
     # gen.compile(loss='binary_crossentropy', optimizer="SGD")
     # out = gen.predict(np.zeros((10,3,256,256)))
-    # train(10)
+    train(10)
     generate(10)
