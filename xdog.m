@@ -6,12 +6,12 @@ Epsilon = -0.1;
 k = 1.6;
 Sigma = 0.8;
 
-imagefiles = dir('colorimages/*.jpg');
+imagefiles = dir('cartoons/*.jpg');
 
+length(imagefiles)
 for idx = 1:numel(imagefiles)
     imagename = imagefiles(idx).name;
-
-    inputIm = imread(strcat('colorimages/',imagename));
+    inputIm = imread(strcat('cartoons/',imagename));
 
     inputIm = rgb2gray(inputIm);
     inputIm = im2double(inputIm);
@@ -40,5 +40,5 @@ for idx = 1:numel(imagefiles)
     % figure, imshow(mat2gray(differencedIm2));
 
     %create XDoG Filtered Image and the thresholded one
-    imwrite(mat2gray(differencedIm2), strcat('bwimages/', imagename));
+    imwrite(mat2gray(differencedIm2), strcat('sketches/', imagename));
 end
