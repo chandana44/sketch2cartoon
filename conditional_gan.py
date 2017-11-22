@@ -30,6 +30,8 @@ OUT_CH = 3
 LAMBDA = 100
 NF = 64  # number of filter
 BATCH_SIZE = 10
+GENERATOR_FILENAME = 'generator'
+DISCRIMINATOR_FILENAME = 'discriminator'
 
 
 def generator_model():
@@ -175,25 +177,29 @@ def generator_l1_loss(y_true, y_pred):
     return K.mean(K.abs(K.flatten(y_pred) - K.flatten(y_true)), axis=-1)
 
 
-def train(BATCH_SIZE):
+def train(BATCH_SIZE, LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
     (X_train, Y_train) = get_data('sketches', 'cartoons')
-    # print(np.shape(X_train))
     X_train = (X_train.astype(np.float32) - 127.5) / 127.5
     Y_train = (Y_train.astype(np.float32) - 127.5) / 127.5
-    # X_train = X_train.reshape((X_train.shape[0], 1) + X_train.shape[1:])
-    # Y_train = Y_train.reshape((Y_train.shape[0], 1) + Y_train.shape[1:])
+
     discriminator = discriminator_model()
     generator = generator_model()
+
+    if LOAD_WEIGHTS:
+        generator.load_weights(GENERATOR_FILENAME)
+        discriminator.load_weights(DISCRIMINATOR_FILENAME)
+
     generator.summary()
+    discriminator.summary()
+
     discriminator_on_generator = generator_containing_discriminator(generator, discriminator)
-    d_optim = Adagrad(lr=0.005)
-    g_optim = Adagrad(lr=0.005)
+
     generator.compile(loss='mse', optimizer="rmsprop")
     discriminator_on_generator.compile(loss=[generator_l1_loss, discriminator_on_generator_loss], optimizer="rmsprop")
     discriminator.trainable = True
     discriminator.compile(loss=discriminator_loss, optimizer="rmsprop")
 
-    for epoch in range(100):
+    for epoch in range(INIT_EPOCH, EPOCHS):
         print("Epoch is", epoch)
         print("Number of batches", int(X_train.shape[0] / BATCH_SIZE))
         for index in range(int(X_train.shape[0] / BATCH_SIZE)):
@@ -223,21 +229,20 @@ def train(BATCH_SIZE):
             discriminator.trainable = True
             print("batch %d g_loss : %f" % (index, g_loss[1]))
             if index % 20 == 0:
-                generator.save_weights('generator', True)
-                discriminator.save_weights('discriminator', True)
+                generator.save_weights(GENERATOR_FILENAME, True)
+                discriminator.save_weights(DISCRIMINATOR_FILENAME, True)
 
 
 def generate(BATCH_SIZE, nice=False):
     (X_train, Y_train) = get_data('test')
-    # print(np.shape(X_train))
     X_train = (X_train.astype(np.float32) - 127.5) / 127.5
     generator = generator_model()
     generator.compile(loss='binary_crossentropy', optimizer="SGD")
-    generator.load_weights('generator')
+    generator.load_weights(GENERATOR_FILENAME)
     if nice:
         discriminator = discriminator_model()
         discriminator.compile(loss='binary_crossentropy', optimizer="SGD")
-        discriminator.load_weights('discriminator')
+        discriminator.load_weights(DISCRIMINATOR_FILENAME)
 
         generated_images = generator.predict(X_train, verbose=1)
         d_pret = discriminator.predict(generated_images, verbose=1)
@@ -275,15 +280,13 @@ def get_data(sketchdir, cartoondir=None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.')
-    parser.add_argument('--load', help='load model')
-    parser.add_argument('--sample', action='store_true', help='run sampling')
-    parser.add_argument('--data', help='A directory of 512x256 images')
-    parser.add_argument('--mode', choices=['AtoB', 'BtoA'], default='AtoB')
+    parser.add_argument('--epochs', help='Number of epochs to run', dest="epochs", default=10)
+    parser.add_argument('--initial_epoch', help='Initial epoch number', dest="init_epoch", default=0)
+    parser.add_argument('--train', help='Train and generate', dest="train", default=1)
+    parser.add_argument('--load_weights', help='load pre-trained weights for generator and discriminator', dest="load_weights", default=0)
     global args
     args = parser.parse_args()
-    # gen = generator_model()
-    # gen.compile(loss='binary_crossentropy', optimizer="SGD")
-    # out = gen.predict(np.zeros((10,3,256,256)))
-    train(10)
+
+    if args.train:
+        train(10, args.load_weights, args.epochs, args.init_epoch)
     generate(10)

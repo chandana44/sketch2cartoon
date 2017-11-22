@@ -1,0 +1,21 @@
+#!/bin/bash
+#SBATCH -A cs395t_f17 #project group
+#SBATCH -J logs/s2c           # job name
+#SBATCH -o logs/s2c.o%j       # output and error file name (%j expands to jobID)
+#SBATCH -n 1 -N 1               # total number of mpi tasks requested
+#SBATCH -p gpu     # queue (partition) -- normal, development, etc.
+#SBATCH -t 12:00:00        # run time (hh:mm:ss) - 1.5 hours
+#SBATCH --mail-user=chandana@utexas.edu
+#SBATCH --mail-type=begin  # email me when the job starts
+#SBATCH --mail-type=end    # email me when the job finishes
+
+epochs=10
+train=1
+load_weighs=1
+init_epoch=0
+
+echo '--------------------------------- SBATCH SCRIPT -------------------------------------'
+cat ./sbatch_script
+echo '-------------------------------------------------------------------------------------'
+
+./run.sh --epochs $epochs --train $train --load_weights $load_weights --initial_epoch = $init_epoch
