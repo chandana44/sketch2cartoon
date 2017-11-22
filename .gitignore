@@ -1,0 +1,8 @@
+generator
+discriminator
+cartoons/
+sketches/
+generated.png
+test/
+logs/
+*.png

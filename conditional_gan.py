@@ -185,7 +185,7 @@ def train(BATCH_SIZE, LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
     discriminator = discriminator_model()
     generator = generator_model()
 
-    if LOAD_WEIGHTS:
+    if LOAD_WEIGHTS==1:
         generator.load_weights(GENERATOR_FILENAME)
         discriminator.load_weights(DISCRIMINATOR_FILENAME)
 
@@ -280,10 +280,10 @@ def get_data(sketchdir, cartoondir=None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--epochs', help='Number of epochs to run', dest="epochs", default=10)
-    parser.add_argument('--initial_epoch', help='Initial epoch number', dest="init_epoch", default=0)
-    parser.add_argument('--train', help='Train and generate', dest="train", default=1)
-    parser.add_argument('--load_weights', help='load pre-trained weights for generator and discriminator', dest="load_weights", default=0)
+    parser.add_argument('--epochs', help='Number of epochs to run', dest="epochs", default=10, type=int)
+    parser.add_argument('--initial_epoch', help='Initial epoch number', dest="init_epoch", default=0, type=int)
+    parser.add_argument('--train', help='Train and generate', dest="train", default=1, type=int)
+    parser.add_argument('--load_weights', help='load pre-trained weights for generator and discriminator', dest="load_weights", default=0, type=int)
     global args
     args = parser.parse_args()
 

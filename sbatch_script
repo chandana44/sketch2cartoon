@@ -11,11 +11,11 @@
 
 epochs=10
 train=1
-load_weighs=1
+load_weights=1
 init_epoch=0
 
 echo '--------------------------------- SBATCH SCRIPT -------------------------------------'
 cat ./sbatch_script
 echo '-------------------------------------------------------------------------------------'
 
-./run.sh --epochs $epochs --train $train --load_weights $load_weights --initial_epoch = $init_epoch
+./run.sh --epochs $epochs --train $train --load_weights $load_weights --initial_epoch $init_epoch
