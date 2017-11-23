@@ -178,7 +178,7 @@ def generator_l1_loss(y_true, y_pred):
 
 
 def train(BATCH_SIZE, LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
-    (X_train, Y_train) = get_data('sketches', 'cartoons')
+    (X_train, Y_train) = get_data('data/faces', 'data/sketches')
     X_train = (X_train.astype(np.float32) - 127.5) / 127.5
     Y_train = (Y_train.astype(np.float32) - 127.5) / 127.5
 
@@ -257,10 +257,13 @@ def generate(BATCH_SIZE, nice=False):
         image = combine_images(nice_images)
     else:
         generated_images = generator.predict(X_train)
-        image = combine_images(generated_images)
-    image = image * 127.5 + 127.5
-    image = np.swapaxes(image, 0, 2)
-    imsave('generated.png', image)
+        #image = combine_images(generated_images)
+    images_names = glob.glob(os.path.join('test', '*.jpg'))
+    for i in range(len(X_train)):
+        image = generated_images[i]
+        image = image * 127.5 + 127.5
+        image = np.swapaxes(image, 0, 2)
+        imsave('output/' + images_names[i], image)
 
 
 def get_data(sketchdir, cartoondir=None):
