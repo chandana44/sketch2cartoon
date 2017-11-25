@@ -242,7 +242,7 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
             print(get_time_string() + " training the generator...")
             discriminator.trainable = False
             g_loss = discriminator_on_generator.train_on_batch(
-                X_train[index * BATCH_SIZE:(index + 1) * BATCH_SIZE, :, :, :], [image_batch, np.ones((BATCH_SIZE, 1, 64, 64))])
+                X_train, [image_batch, np.ones((BATCH_SIZE, 1, 64, 64))])
             discriminator.trainable = True
             print(get_time_string() + " batch %d g_loss : %f" % (index, g_loss[1]))
             if index % 20 == 0:
