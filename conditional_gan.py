@@ -142,7 +142,7 @@ def generator_containing_discriminator(generator, discriminator):
 
 
 def discriminator_loss(y_true, y_pred):
-    this_batch_size = len(y_pred)
+    this_batch_size = y_pred.shape[0]
     return K.mean(K.binary_crossentropy(K.flatten(y_pred), K.concatenate(
         [K.ones_like(K.flatten(y_pred[:this_batch_size/2, :, :, :])),
          K.zeros_like(K.flatten(y_pred[:this_batch_size/2, :, :, :]))])),
