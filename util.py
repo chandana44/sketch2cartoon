@@ -1,6 +1,7 @@
 from conditional_gan import *
 from theano import function, config, shared, tensor
 import numpy as np
+import time
 
 
 # Returns formatted current time as string
