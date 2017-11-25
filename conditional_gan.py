@@ -178,7 +178,7 @@ def generator_l1_loss(y_true, y_pred):
 
 
 def train(BATCH_SIZE, LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
-    (X_train, Y_train) = get_data('data/faces', 'data/sketches')
+    (X_train, Y_train) = get_data('../data/train', '../data/sketches')
     X_train = (X_train.astype(np.float32) - 127.5) / 127.5
     Y_train = (Y_train.astype(np.float32) - 127.5) / 127.5
 
@@ -210,7 +210,7 @@ def train(BATCH_SIZE, LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
                 image = combine_images(generated_images)
                 image = image * 127.5 + 127.5
                 image = np.swapaxes(image, 0, 2)
-                imsave(str(epoch) + "_" + str(index) + ".png", image)
+                #imsave(str(epoch) + "_" + str(index) + ".png", image)
                 # Image.fromarray(image.astype(np.uint8)).save(str(epoch)+"_"+str(index)+".png")
 
             real_pairs = np.concatenate((X_train[index * BATCH_SIZE:(index + 1) * BATCH_SIZE, :, :, :], image_batch),
@@ -234,7 +234,7 @@ def train(BATCH_SIZE, LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
 
 
 def generate(BATCH_SIZE, nice=False):
-    (X_train, Y_train) = get_data('test')
+    (X_train, Y_train) = get_data('../data/test')
     X_train = (X_train.astype(np.float32) - 127.5) / 127.5
     generator = generator_model()
     generator.compile(loss='binary_crossentropy', optimizer="SGD")
@@ -258,7 +258,7 @@ def generate(BATCH_SIZE, nice=False):
     else:
         generated_images = generator.predict(X_train)
         #image = combine_images(generated_images)
-    images_names = glob.glob(os.path.join('test', '*.jpg'))
+    images_names = glob.glob(os.path.join('test', '*.png'))
     for i in range(len(X_train)):
         image = generated_images[i]
         image = image * 127.5 + 127.5
@@ -267,14 +267,14 @@ def generate(BATCH_SIZE, nice=False):
 
 
 def get_data(sketchdir, cartoondir=None):
-    sketches = glob.glob(os.path.join(sketchdir, '*.jpg'))
+    sketches = glob.glob(os.path.join(sketchdir, '*.png'))
     data_X = np.zeros((len(sketches), 3, img_cols, img_rows))
     for i in range(0,len(sketches)):
         data_X[i, :, :, :] = np.swapaxes(imread(sketches[i], mode='RGB'),0,2)
 
     data_Y = []
     if cartoondir:
-        cartoons = glob.glob(os.path.join(cartoondir, '*.jpg'))
+        cartoons = glob.glob(os.path.join(cartoondir, '*.png'))
         data_Y = np.zeros((len(cartoons), 3, img_cols, img_rows))
         for i in range(0, len(sketches)):
             data_Y[i, :, :, :] = np.swapaxes(imread(cartoons[i], mode='RGB'),0,2)
