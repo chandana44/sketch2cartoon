@@ -1,8 +1,10 @@
+
+from util import *
+
 import argparse
 import glob
 import math
 import os
-import time
 
 import numpy as np
 from keras import backend as K
@@ -28,23 +30,6 @@ NF = 64  # number of filter
 BATCH_SIZE = 128
 GENERATOR_FILENAME = ''
 DISCRIMINATOR_FILENAME = ''
-
-
-# Returns formatted current time as string
-def get_time_string():
-    return time.strftime('%c') + ' '
-
-
-def chunks(l, m, n):
-    """Yield successive n-sized chunks from l and m."""
-    for i in range(0, len(l), n):
-        yield get_data_from_files(l[i: i + n], m[i: i + n])
-
-
-def chunks_test(l, n):
-    """Yield successive n-sized chunks from l and m."""
-    for i in range(0, len(l), n):
-        yield get_data_from_files(l[i: i + n])
 
 
 def generator_model():
@@ -304,6 +289,11 @@ def get_data(sketchdir, cartoondir=None):
 
 
 if __name__ == '__main__':
+    if is_using_gpu():
+        print('Program is using GPU..')
+    else:
+        print('Program is using CPU..')
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--epochs', help='Number of epochs to run', dest="epochs", default=10, type=int)
     parser.add_argument('--initial_epoch', help='Initial epoch number', dest="init_epoch", default=0, type=int)
