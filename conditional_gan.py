@@ -170,9 +170,9 @@ def generator_l1_loss(y_true, y_pred):
     return K.mean(K.abs(K.flatten(y_pred) - K.flatten(y_true)), axis=-1)
 
 
-def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
-    photos = glob.glob(os.path.join('../data/train', '*.png'))
-    sketches = glob.glob(os.path.join('../data/sketches', '*.png'))
+def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir):
+    photos = glob.glob(os.path.join(train_photos_dir, '*.png'))
+    sketches = glob.glob(os.path.join(train_sketches_dir, '*.png'))
 
     discriminator = discriminator_model()
     generator = generator_model()
@@ -234,9 +234,9 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
             index += 1
 
 
-def generate(nice=False):
-    photos = glob.glob(os.path.join('../data/test', '*.png'))
-    for X_test, Y_test in chunks(photos, BATCH_SIZE):
+def generate(test_photos_dir, nice=False):
+    photos = glob.glob(os.path.join(test_photos_dir, '*.png'))
+    for X_test, Y_test in chunks_test(photos, BATCH_SIZE):
         X_test = (X_test.astype(np.float32) - 127.5) / 127.5
         generator = generator_model()
         generator.compile(loss='binary_crossentropy', optimizer="SGD")
@@ -310,10 +310,20 @@ if __name__ == '__main__':
     parser.add_argument('--generator', help='generator file name', dest="generator", default='generator')
     parser.add_argument('--discriminator', help='discriminator file name', dest="discriminator",
                         default='discriminator')
-    global args
+
+    parser.add_argument('--train_photos', help='training photos directory', dest="train_photos",
+                        default='../data/yearbook_train_photos')
+    parser.add_argument('--train_sketches', help='training sketches directory', dest="train_sketches",
+                        default='../data/yearbook_train_sketches')
+    parser.add_argument('--test_photos', help='test photos directory', dest="test_photos",
+                        default='../data/yearbook_test_photos')
+
     args = parser.parse_args()
+    print(get_time_string() + ' Args provided: ' + str(args))
+
     GENERATOR_FILENAME = args.generator
     DISCRIMINATOR_FILENAME = args.discriminator
+
     if args.train == 1:
-        train(args.load_weights, args.epochs, args.init_epoch)
-    generate()
+        train(args.load_weights, args.epochs, args.init_epoch, args.train_photos, args.train_sketches)
+    generate(args.test_photos)
