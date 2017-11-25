@@ -170,7 +170,7 @@ def generator_l1_loss(y_true, y_pred):
     return K.mean(K.abs(K.flatten(y_pred) - K.flatten(y_true)), axis=-1)
 
 
-def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir):
+def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir, output_dir):
     photos = glob.glob(os.path.join(train_photos_dir, '*.png'))
     sketches = glob.glob(os.path.join(train_sketches_dir, '*.png'))
 
@@ -207,7 +207,7 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir
                 image = combine_images(generated_images)
                 image = image * 127.5 + 127.5
                 image = np.swapaxes(image, 0, 2)
-                imsave(str(epoch) + "_" + str(index) + ".png", image)
+                imsave(output_dir + "/epoch-" + str(epoch) + "_batch-" + str(index) + ".png", image)
                 # Image.fromarray(image.astype(np.uint8)).save(str(epoch)+"_"+str(index)+".png")
 
             print(get_time_string() + " Training the discriminator...")
@@ -234,8 +234,9 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir
             index += 1
 
 
-def generate(test_photos_dir, nice=False):
+def generate(test_photos_dir, output_dir, nice=False):
     photos = glob.glob(os.path.join(test_photos_dir, '*.png'))
+    start = 0
     for X_test, Y_test in chunks_test(photos, BATCH_SIZE):
         X_test = (X_test.astype(np.float32) - 127.5) / 127.5
         generator = generator_model()
@@ -260,12 +261,14 @@ def generate(test_photos_dir, nice=False):
         else:
             generated_images = generator.predict(X_test)
             # image = combine_images(generated_images)
-        images_names = glob.glob(os.path.join('test', '*.png'))
+        # images_names = glob.glob(os.path.join('test', '*.png'))
         for i in range(len(X_test)):
             image = generated_images[i]
             image = image * 127.5 + 127.5
             image = np.swapaxes(image, 0, 2)
-            imsave('output/' + images_names[i][5:], image)
+            image_name = photos[i + start].split('/')[-1]
+            imsave(output_dir + '/' + image_name, image)
+        start += len(X_test)
 
 
 def get_data_from_files(photo_file_names, sketch_file_names=None):
@@ -310,6 +313,8 @@ if __name__ == '__main__':
     parser.add_argument('--generator', help='generator file name', dest="generator", default='generator')
     parser.add_argument('--discriminator', help='discriminator file name', dest="discriminator",
                         default='discriminator')
+    parser.add_argument('--output_dir', help='Output directory to store intermediate images and final result', dest="output_dir",
+                        default='output')
 
     parser.add_argument('--train_photos', help='training photos directory', dest="train_photos",
                         default='../data/yearbook_train_photos')
@@ -325,5 +330,5 @@ if __name__ == '__main__':
     DISCRIMINATOR_FILENAME = args.discriminator
 
     if args.train == 1:
-        train(args.load_weights, args.epochs, args.init_epoch, args.train_photos, args.train_sketches)
+        train(args.load_weights, args.epochs, args.init_epoch, args.train_photos, args.train_sketches, args.output_dir)
     generate(args.test_photos)
