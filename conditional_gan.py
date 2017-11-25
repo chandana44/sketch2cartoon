@@ -32,8 +32,8 @@ OUT_CH = 3
 LAMBDA = 100
 NF = 64  # number of filter
 BATCH_SIZE = 128
-GENERATOR_FILENAME = 'generator'
-DISCRIMINATOR_FILENAME = 'discriminator'
+GENERATOR_FILENAME = ''
+DISCRIMINATOR_FILENAME = ''
 
 # Returns formatted current time as string
 def get_time_string():
@@ -71,58 +71,41 @@ def generator_model():
     e6 = Convolution2D(512, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e5)
     e6 = BatchNormalization()(e6)
 
-    e7 = Convolution2D(512, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e6)
-    e7 = BatchNormalization()(e7)
-    e8 = Convolution2D(512, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e7)
-    e8 = BatchNormalization()(e8)
-
     d1 = Deconvolution2D(512, 5, 5, subsample=(2, 2), activation='relu', init='uniform', output_shape=(None, 512, 2, 2),
-                         border_mode='same')(e8)
-    d1 = merge([d1, e7], mode='concat', concat_axis=1)
+                         border_mode='same')(e6)
+    d1 = merge([d1, e5], mode='concat', concat_axis=1)
     d1 = BatchNormalization()(d1)
 
     d2 = Deconvolution2D(512, 5, 5, subsample=(2, 2), activation='relu', init='uniform', output_shape=(None, 512, 4, 4),
                          border_mode='same')(d1)
-    d2 = merge([d2, e6], mode='concat', concat_axis=1)
+    d2 = merge([d2, e4], mode='concat', concat_axis=1)
     d2 = BatchNormalization()(d2)
 
     d3 = Dropout(0.2)(d2)
     d3 = Deconvolution2D(512, 5, 5, subsample=(2, 2), activation='relu', init='uniform', output_shape=(None, 512, 8, 8),
                          border_mode='same')(d3)
-    d3 = merge([d3, e5], mode='concat', concat_axis=1)
+    d3 = merge([d3, e3], mode='concat', concat_axis=1)
     d3 = BatchNormalization()(d3)
 
     d4 = Dropout(0.2)(d3)
     d4 = Deconvolution2D(512, 5, 5, subsample=(2, 2), activation='relu', init='uniform',
                          output_shape=(None, 512, 16, 16), border_mode='same')(d4)
-    d4 = merge([d4, e4], mode='concat', concat_axis=1)
+    d4 = merge([d4, e2], mode='concat', concat_axis=1)
     d4 = BatchNormalization()(d4)
 
     d5 = Dropout(0.2)(d4)
     d5 = Deconvolution2D(256, 5, 5, subsample=(2, 2), activation='relu', init='uniform',
                          output_shape=(None, 256, 32, 32), border_mode='same')(d5)
-    d5 = merge([d5, e3], mode='concat', concat_axis=1)
+    d5 = merge([d5, e1], mode='concat', concat_axis=1)
     d5 = BatchNormalization()(d5)
 
-    d6 = Dropout(0.2)(d5)
-    d6 = Deconvolution2D(128, 5, 5, subsample=(2, 2), activation='relu', init='uniform',
-                         output_shape=(None, 128, 64, 64), border_mode='same')(d6)
-    d6 = merge([d6, e2], mode='concat', concat_axis=1)
+    d6 = Deconvolution2D(3, 5, 5, subsample=(2, 2), activation='relu', init='uniform', output_shape=(None, 3, 64, 64),
+                         border_mode='same')(d5)
+
     d6 = BatchNormalization()(d6)
+    d7 = Activation('tanh')(d6)
 
-    d7 = Dropout(0.2)(d6)
-    d7 = Deconvolution2D(64, 5, 5, subsample=(2, 2), activation='relu', init='uniform',
-                         output_shape=(None, 64, 128, 128), border_mode='same')(d7)
-    d7 = merge([d7, e1], mode='concat', concat_axis=1)
-
-    d7 = BatchNormalization()(d7)
-    d8 = Deconvolution2D(3, 5, 5, subsample=(2, 2), activation='relu', init='uniform', output_shape=(None, 3, 256, 256),
-                         border_mode='same')(d7)
-
-    d8 = BatchNormalization()(d8)
-    d9 = Activation('tanh')(d8)
-
-    model = Model(input=inputs, output=d9)
+    model = Model(input=inputs, output=d7)
     return model
 
 
@@ -237,7 +220,7 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
             X = np.concatenate((real_pairs, fake_pairs))
             y = np.zeros((2 * BATCH_SIZE, 1, 64, 64))  # [1] * BATCH_SIZE + [0] * BATCH_SIZE
             d_loss = discriminator.train_on_batch(X, y)
-            pred_temp = discriminator.predict(X)
+            # pred_temp = discriminator.predict(X)
             # print(np.shape(pred_temp))
             print(get_time_string() + " batch %d d_loss : %f" % (index, d_loss))
             print(get_time_string() + " training the generator...")
@@ -283,7 +266,7 @@ def generate(nice=False):
             image = generated_images[i]
             image = image * 127.5 + 127.5
             image = np.swapaxes(image, 0, 2)
-            imsave('output/' + images_names[i], image)
+            imsave('output/' + images_names[i][5:], image)
 
 
 def get_data_from_files(photo_file_names, sketch_file_names=None):
@@ -292,7 +275,7 @@ def get_data_from_files(photo_file_names, sketch_file_names=None):
 
     for i in range(0, len(photo_file_names)):
         file_name = photo_file_names[i]
-        data_X[i, :, :, :] = np.swapaxes(imresize(imread(file_name, mode='RGB') (64,64)), 0, 2)
+        data_X[i, :, :, :] = np.swapaxes(imresize(imread(file_name, mode='RGB'), (64,64)), 0, 2)
 
     if sketch_file_names:
         data_Y = np.zeros((len(sketch_file_names), 3, img_cols, img_rows))
@@ -324,9 +307,12 @@ if __name__ == '__main__':
     parser.add_argument('--initial_epoch', help='Initial epoch number', dest="init_epoch", default=0, type=int)
     parser.add_argument('--train', help='Train and generate', dest="train", default=1, type=int)
     parser.add_argument('--load_weights', help='load pre-trained weights for generator and discriminator', dest="load_weights", default=0, type=int)
+    parser.add_argument('--generator', help='generator file name', dest="generator", default='generator')
+    parser.add_argument('--discriminator', help='discriminator file name', dest="discriminator", default='discriminator')
     global args
     args = parser.parse_args()
-
-    if args.train:
+    GENERATOR_FILENAME = args.generator
+    DISCRIMINATOR_FILENAME = args.discriminator
+    if args.train==1:
         train(args.load_weights, args.epochs, args.init_epoch)
     generate()

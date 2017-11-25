@@ -9,13 +9,16 @@
 #SBATCH --mail-type=begin  # email me when the job starts
 #SBATCH --mail-type=end    # email me when the job finishes
 
-epochs=10
+run=2
+epochs=4
 train=1
-load_weights=1
+load_weights=0
 init_epoch=0
+generator='generator'$run
+discriminator='discriminator'$run
 
 echo '--------------------------------- SBATCH SCRIPT -------------------------------------'
 cat ./sbatch_script
 echo '-------------------------------------------------------------------------------------'
 
-./run.sh --epochs $epochs --train $train --load_weights $load_weights --initial_epoch $init_epoch
+./run.sh --epochs $epochs --train $train --load_weights $load_weights --initial_epoch $init_epoch --generator $generator --discriminator $discriminator
