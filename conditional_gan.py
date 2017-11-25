@@ -34,6 +34,16 @@ GENERATOR_FILENAME = 'generator'
 DISCRIMINATOR_FILENAME = 'discriminator'
 
 
+def chunks(l, m, n):
+    """Yield successive n-sized chunks from l and m."""
+    for i in range(0, len(l), n):
+        yield get_data_from_files(l[i: i + n], m[i: i + n])
+
+def chunks_test(l, n):
+    """Yield successive n-sized chunks from l and m."""
+    for i in range(0, len(l), n):
+        yield get_data_from_files(l[i: i + n])
+
 def generator_model():
     global BATCH_SIZE
     # imgs: input: 256x256xch
@@ -178,9 +188,8 @@ def generator_l1_loss(y_true, y_pred):
 
 
 def train(BATCH_SIZE, LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
-    (X_train, Y_train) = get_data('../data/train', '../data/sketches')
-    X_train = (X_train.astype(np.float32) - 127.5) / 127.5
-    Y_train = (Y_train.astype(np.float32) - 127.5) / 127.5
+    photos = glob.glob(os.path.join('../data/train', '*.png'))
+    sketches = glob.glob(os.path.join('../data/sketches', '*.png'))
 
     discriminator = discriminator_model()
     generator = generator_model()
@@ -200,17 +209,20 @@ def train(BATCH_SIZE, LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
     discriminator.compile(loss=discriminator_loss, optimizer="rmsprop")
 
     for epoch in range(INIT_EPOCH, EPOCHS):
-        print("Epoch is", epoch)
-        print("Number of batches", int(X_train.shape[0] / BATCH_SIZE))
-        for index in range(int(X_train.shape[0] / BATCH_SIZE)):
-            image_batch = Y_train[index * BATCH_SIZE:(index + 1) * BATCH_SIZE]
+        index = 0
+        for X_train, Y_train in chunks(photos, sketches, BATCH_SIZE):
+            X_train = (X_train.astype(np.float32) - 127.5) / 127.5
+            Y_train = (Y_train.astype(np.float32) - 127.5) / 127.5
 
-            generated_images = generator.predict(X_train[index * BATCH_SIZE:(index + 1) * BATCH_SIZE])
-            if index % 20 == 0:
+            print("Epoch is", epoch)
+            print("Number of batches", int(len(photos) / BATCH_SIZE))
+            image_batch = Y_train
+            generated_images = generator.predict(X_train)
+            if index % 50 == 0:
                 image = combine_images(generated_images)
                 image = image * 127.5 + 127.5
                 image = np.swapaxes(image, 0, 2)
-                #imsave(str(epoch) + "_" + str(index) + ".png", image)
+                imsave(str(epoch) + "_" + str(index) + ".png", image)
                 # Image.fromarray(image.astype(np.uint8)).save(str(epoch)+"_"+str(index)+".png")
 
             real_pairs = np.concatenate((X_train[index * BATCH_SIZE:(index + 1) * BATCH_SIZE, :, :, :], image_batch),
@@ -231,39 +243,58 @@ def train(BATCH_SIZE, LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
             if index % 20 == 0:
                 generator.save_weights(GENERATOR_FILENAME, True)
                 discriminator.save_weights(DISCRIMINATOR_FILENAME, True)
+            index += 1
 
 
 def generate(BATCH_SIZE, nice=False):
-    (X_train, Y_train) = get_data('../data/test')
-    X_train = (X_train.astype(np.float32) - 127.5) / 127.5
-    generator = generator_model()
-    generator.compile(loss='binary_crossentropy', optimizer="SGD")
-    generator.load_weights(GENERATOR_FILENAME)
-    if nice:
-        discriminator = discriminator_model()
-        discriminator.compile(loss='binary_crossentropy', optimizer="SGD")
-        discriminator.load_weights(DISCRIMINATOR_FILENAME)
+    photos = glob.glob(os.path.join('../data/test', '*.png'))
+    for X_test, Y_test in chunks(photos, BATCH_SIZE):
+        X_test = (X_test.astype(np.float32) - 127.5) / 127.5
+        generator = generator_model()
+        generator.compile(loss='binary_crossentropy', optimizer="SGD")
+        generator.load_weights(GENERATOR_FILENAME)
+        if nice:
+            discriminator = discriminator_model()
+            discriminator.compile(loss='binary_crossentropy', optimizer="SGD")
+            discriminator.load_weights(DISCRIMINATOR_FILENAME)
 
-        generated_images = generator.predict(X_train, verbose=1)
-        d_pret = discriminator.predict(generated_images, verbose=1)
-        index = np.arange(0, BATCH_SIZE * 20)
-        index.resize((BATCH_SIZE * 20, 1))
-        pre_with_index = list(np.append(d_pret, index, axis=1))
-        pre_with_index.sort(key=lambda x: x[0], reverse=True)
-        nice_images = np.zeros((BATCH_SIZE, 1) + (generated_images.shape[2:]), dtype=np.float32)
-        for i in range(int(BATCH_SIZE)):
-            idx = int(pre_with_index[i][1])
-            nice_images[i, 0, :, :] = generated_images[idx, 0, :, :]
-        image = combine_images(nice_images)
-    else:
-        generated_images = generator.predict(X_train)
-        #image = combine_images(generated_images)
-    images_names = glob.glob(os.path.join('test', '*.png'))
-    for i in range(len(X_train)):
-        image = generated_images[i]
-        image = image * 127.5 + 127.5
-        image = np.swapaxes(image, 0, 2)
-        imsave('output/' + images_names[i], image)
+            generated_images = generator.predict(X_test, verbose=1)
+            d_pret = discriminator.predict(generated_images, verbose=1)
+            index = np.arange(0, BATCH_SIZE * 20)
+            index.resize((BATCH_SIZE * 20, 1))
+            pre_with_index = list(np.append(d_pret, index, axis=1))
+            pre_with_index.sort(key=lambda x: x[0], reverse=True)
+            nice_images = np.zeros((BATCH_SIZE, 1) + (generated_images.shape[2:]), dtype=np.float32)
+            for i in range(int(BATCH_SIZE)):
+                idx = int(pre_with_index[i][1])
+                nice_images[i, 0, :, :] = generated_images[idx, 0, :, :]
+            image = combine_images(nice_images)
+        else:
+            generated_images = generator.predict(X_test)
+            #image = combine_images(generated_images)
+        images_names = glob.glob(os.path.join('test', '*.png'))
+        for i in range(len(X_test)):
+            image = generated_images[i]
+            image = image * 127.5 + 127.5
+            image = np.swapaxes(image, 0, 2)
+            imsave('output/' + images_names[i], image)
+
+
+def get_data_from_files(photo_file_names, sketch_file_names=None):
+    data_X = np.zeros((len(photo_file_names), 3, img_cols, img_rows))
+    data_Y = []
+
+    for i in range(0, len(photo_file_names)):
+        file_name = photo_file_names[i]
+        data_X[i, :, :, :] = np.swapaxes(imread(file_name, mode='RGB'), 0, 2)
+
+    if sketch_file_names:
+        data_Y = np.zeros((len(sketch_file_names), 3, img_cols, img_rows))
+        for i in range(0, len(sketch_file_names)):
+            file_name = sketch_file_names[i]
+            data_Y[i, :, :, :] = np.swapaxes(imread(file_name, mode='RGB'), 0, 2)
+
+    return data_X, data_Y
 
 
 def get_data(sketchdir, cartoondir=None):
@@ -291,5 +322,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.train:
-        train(10, args.load_weights, args.epochs, args.init_epoch)
+        train(128, args.load_weights, args.epochs, args.init_epoch)
     generate(10)
