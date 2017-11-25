@@ -35,4 +35,4 @@ echo '--------------------------------- SBATCH SCRIPT --------------------------
 cat ./sbatch_script
 echo '-------------------------------------------------------------------------------------'
 
-./run.sh --epochs=$epochs --train=$train --load_weights=$load_weights --initial_epoch=$init_epoch --generator=$generator --discriminator=$discriminator --output_dir=$output_dir
+./run.sh --epochs=$epochs --train=$train --load_weights=$load_weights --initial_epoch=$init_epoch --generator=$generator --discriminator=$discriminator --output_dir=$output_dir --train_photos=$train_photos --train_sketches=$train_sketches --test_photos=$test_photos
