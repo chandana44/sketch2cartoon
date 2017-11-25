@@ -1,25 +1,19 @@
-import numpy as np
-import glob, pickle
-import os, sys
 import argparse
-from keras.models import Sequential, Model
-from keras.layers import Dense, Input, merge
-from keras.layers import Reshape
+import glob
+import math
+import os
+import time
+
+import numpy as np
+from keras import backend as K
+from keras.layers import Input, merge, Convolution2D, MaxPooling2D
+from keras.layers.convolutional import Deconvolution2D
 from keras.layers.core import Activation, Dropout
 from keras.layers.normalization import BatchNormalization
-from keras.layers.convolutional import UpSampling2D
-from keras.layers.convolutional import Convolution2D, MaxPooling2D, Deconvolution2D
-from keras.layers.core import Flatten
-from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D
-from keras.optimizers import SGD, Adagrad
-from PIL import Image
-from keras import backend as K
-from keras.layers.normalization import BatchNormalization
-import math
+from keras.models import Sequential, Model
 from scipy.misc import imread
-from scipy.misc import imsave
 from scipy.misc import imresize
-import time
+from scipy.misc import imsave
 
 K.set_image_dim_ordering('th')
 
@@ -35,19 +29,23 @@ BATCH_SIZE = 128
 GENERATOR_FILENAME = ''
 DISCRIMINATOR_FILENAME = ''
 
+
 # Returns formatted current time as string
 def get_time_string():
     return time.strftime('%c') + ' '
+
 
 def chunks(l, m, n):
     """Yield successive n-sized chunks from l and m."""
     for i in range(0, len(l), n):
         yield get_data_from_files(l[i: i + n], m[i: i + n])
 
+
 def chunks_test(l, n):
     """Yield successive n-sized chunks from l and m."""
     for i in range(0, len(l), n):
         yield get_data_from_files(l[i: i + n])
+
 
 def generator_model():
     global BATCH_SIZE
@@ -179,7 +177,7 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
     discriminator = discriminator_model()
     generator = generator_model()
 
-    if LOAD_WEIGHTS==1:
+    if LOAD_WEIGHTS == 1:
         generator.load_weights(GENERATOR_FILENAME)
         discriminator.load_weights(DISCRIMINATOR_FILENAME)
 
@@ -196,14 +194,14 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
     for epoch in range(INIT_EPOCH, EPOCHS):
         index = 0
         print(get_time_string() + " Epoch is", epoch)
-        print(get_time_string() +  " Number of batches", int(len(photos) / BATCH_SIZE))
+        print(get_time_string() + " Number of batches", int(len(photos) / BATCH_SIZE))
 
         for X_train, Y_train in chunks(photos, sketches, BATCH_SIZE):
-            print get_time_string() + ' batch number: ' + str(index)
+            print(get_time_string() + ' Batch number: ' + str(index))
             X_train = (X_train.astype(np.float32) - 127.5) / 127.5
             Y_train = (Y_train.astype(np.float32) - 127.5) / 127.5
             image_batch = Y_train
-            print(get_time_string() + " predicting...")
+            print(get_time_string() + " Predicting...")
             generated_images = generator.predict(X_train)
             if index % 50 == 0:
                 image = combine_images(generated_images)
@@ -212,23 +210,24 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
                 imsave(str(epoch) + "_" + str(index) + ".png", image)
                 # Image.fromarray(image.astype(np.uint8)).save(str(epoch)+"_"+str(index)+".png")
 
-            print(get_time_string() + " training the discriminator...")
-            real_pairs = np.concatenate((X_train, image_batch),
-                                        axis=1)
-            fake_pairs = np.concatenate(
-                (X_train, generated_images), axis=1)
+            print(get_time_string() + " Training the discriminator...")
+
+            real_pairs = np.concatenate((X_train, image_batch), axis=1)
+            fake_pairs = np.concatenate((X_train, generated_images), axis=1)
+
             X = np.concatenate((real_pairs, fake_pairs))
-            y = np.zeros((2 * BATCH_SIZE, 1, 64, 64))  # [1] * BATCH_SIZE + [0] * BATCH_SIZE
+            y = np.zeros((2 * len(X_train), 1, 64, 64))  # [1] * BATCH_SIZE + [0] * BATCH_SIZE
             d_loss = discriminator.train_on_batch(X, y)
             # pred_temp = discriminator.predict(X)
             # print(np.shape(pred_temp))
             print(get_time_string() + " batch %d d_loss : %f" % (index, d_loss))
-            print(get_time_string() + " training the generator...")
+
+            print(get_time_string() + " Training the generator...")
             discriminator.trainable = False
-            g_loss = discriminator_on_generator.train_on_batch(
-                X_train, [image_batch, np.ones((BATCH_SIZE, 1, 64, 64))])
+            g_loss = discriminator_on_generator.train_on_batch(X_train, [image_batch, np.ones((BATCH_SIZE, 1, 64, 64))])
             discriminator.trainable = True
             print(get_time_string() + " batch %d g_loss : %f" % (index, g_loss[1]))
+
             if index % 20 == 0:
                 generator.save_weights(GENERATOR_FILENAME, True)
                 discriminator.save_weights(DISCRIMINATOR_FILENAME, True)
@@ -260,7 +259,7 @@ def generate(nice=False):
             image = combine_images(nice_images)
         else:
             generated_images = generator.predict(X_test)
-            #image = combine_images(generated_images)
+            # image = combine_images(generated_images)
         images_names = glob.glob(os.path.join('test', '*.png'))
         for i in range(len(X_test)):
             image = generated_images[i]
@@ -275,7 +274,7 @@ def get_data_from_files(photo_file_names, sketch_file_names=None):
 
     for i in range(0, len(photo_file_names)):
         file_name = photo_file_names[i]
-        data_X[i, :, :, :] = np.swapaxes(imresize(imread(file_name, mode='RGB'), (64,64)), 0, 2)
+        data_X[i, :, :, :] = np.swapaxes(imresize(imread(file_name, mode='RGB'), (64, 64)), 0, 2)
 
     if sketch_file_names:
         data_Y = np.zeros((len(sketch_file_names), 3, img_cols, img_rows))
@@ -289,15 +288,15 @@ def get_data_from_files(photo_file_names, sketch_file_names=None):
 def get_data(sketchdir, cartoondir=None):
     sketches = glob.glob(os.path.join(sketchdir, '*.png'))
     data_X = np.zeros((len(sketches), 3, img_cols, img_rows))
-    for i in range(0,len(sketches)):
-        data_X[i, :, :, :] = np.swapaxes(imread(sketches[i], mode='RGB'),0,2)
+    for i in range(0, len(sketches)):
+        data_X[i, :, :, :] = np.swapaxes(imread(sketches[i], mode='RGB'), 0, 2)
 
     data_Y = []
     if cartoondir:
         cartoons = glob.glob(os.path.join(cartoondir, '*.png'))
         data_Y = np.zeros((len(cartoons), 3, img_cols, img_rows))
         for i in range(0, len(sketches)):
-            data_Y[i, :, :, :] = np.swapaxes(imread(cartoons[i], mode='RGB'),0,2)
+            data_Y[i, :, :, :] = np.swapaxes(imread(cartoons[i], mode='RGB'), 0, 2)
     return data_X, data_Y
 
 
@@ -306,13 +305,15 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', help='Number of epochs to run', dest="epochs", default=10, type=int)
     parser.add_argument('--initial_epoch', help='Initial epoch number', dest="init_epoch", default=0, type=int)
     parser.add_argument('--train', help='Train and generate', dest="train", default=1, type=int)
-    parser.add_argument('--load_weights', help='load pre-trained weights for generator and discriminator', dest="load_weights", default=0, type=int)
+    parser.add_argument('--load_weights', help='load pre-trained weights for generator and discriminator',
+                        dest="load_weights", default=0, type=int)
     parser.add_argument('--generator', help='generator file name', dest="generator", default='generator')
-    parser.add_argument('--discriminator', help='discriminator file name', dest="discriminator", default='discriminator')
+    parser.add_argument('--discriminator', help='discriminator file name', dest="discriminator",
+                        default='discriminator')
     global args
     args = parser.parse_args()
     GENERATOR_FILENAME = args.generator
     DISCRIMINATOR_FILENAME = args.discriminator
-    if args.train==1:
+    if args.train == 1:
         train(args.load_weights, args.epochs, args.init_epoch)
     generate()

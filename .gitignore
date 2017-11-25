@@ -6,3 +6,4 @@ generated.png
 test/
 logs/
 *.png
+.idea/
