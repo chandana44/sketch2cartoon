@@ -5,7 +5,7 @@
 #SBATCH -n 1 -N 1               # total number of mpi tasks requested
 #SBATCH -p gpu     # queue (partition) -- normal, development, etc.
 #SBATCH -t 12:00:00        # run time (hh:mm:ss) - 1.5 hours
-#SBATCH --mail-user=chandana@utexas.edu
+#SBATCH --mail-user=chandana@utexas.edu,pandian@cs.utexas.edu
 #SBATCH --mail-type=begin  # email me when the job starts
 #SBATCH --mail-type=end    # email me when the job finishes
 
@@ -16,9 +16,10 @@ load_weights=0
 init_epoch=0
 generator='generator'$run
 discriminator='discriminator'$run
+output_dir='output'$run
 
 echo '--------------------------------- SBATCH SCRIPT -------------------------------------'
 cat ./sbatch_script
 echo '-------------------------------------------------------------------------------------'
 
-./run.sh --epochs $epochs --train $train --load_weights $load_weights --initial_epoch $init_epoch --generator $generator --discriminator $discriminator
+./run.sh --epochs=$epochs --train=$train --load_weights=$load_weights --initial_epoch=$init_epoch --generator=$generator --discriminator=$discriminator --output_dir=$output_dir
