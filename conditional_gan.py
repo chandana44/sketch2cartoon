@@ -29,7 +29,7 @@ IN_CH = 3
 OUT_CH = 3
 LAMBDA = 100
 NF = 64  # number of filter
-BATCH_SIZE = 10
+BATCH_SIZE = 128
 GENERATOR_FILENAME = 'generator'
 DISCRIMINATOR_FILENAME = 'discriminator'
 
@@ -171,23 +171,20 @@ def generator_containing_discriminator(generator, discriminator):
 
 
 def discriminator_loss(y_true, y_pred):
-    BATCH_SIZE = 10
     return K.mean(K.binary_crossentropy(K.flatten(y_pred), K.concatenate(
         [K.ones_like(K.flatten(y_pred[:BATCH_SIZE, :, :, :])), K.zeros_like(K.flatten(y_pred[:BATCH_SIZE, :, :, :]))])),
                   axis=-1)
 
 
 def discriminator_on_generator_loss(y_true, y_pred):
-    BATCH_SIZE = 10
     return K.mean(K.binary_crossentropy(K.flatten(y_pred), K.ones_like(K.flatten(y_pred))), axis=-1)
 
 
 def generator_l1_loss(y_true, y_pred):
-    BATCH_SIZE = 10
     return K.mean(K.abs(K.flatten(y_pred) - K.flatten(y_true)), axis=-1)
 
 
-def train(BATCH_SIZE, LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
+def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
     photos = glob.glob(os.path.join('../data/train', '*.png'))
     sketches = glob.glob(os.path.join('../data/sketches', '*.png'))
 
@@ -210,12 +207,13 @@ def train(BATCH_SIZE, LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
 
     for epoch in range(INIT_EPOCH, EPOCHS):
         index = 0
+        print("Epoch is", epoch)
+        print("Number of batches", int(len(photos) / BATCH_SIZE))
+
         for X_train, Y_train in chunks(photos, sketches, BATCH_SIZE):
+            print 'batch number: ' + str(index)
             X_train = (X_train.astype(np.float32) - 127.5) / 127.5
             Y_train = (Y_train.astype(np.float32) - 127.5) / 127.5
-
-            print("Epoch is", epoch)
-            print("Number of batches", int(len(photos) / BATCH_SIZE))
             image_batch = Y_train
             generated_images = generator.predict(X_train)
             if index % 50 == 0:
@@ -230,14 +228,14 @@ def train(BATCH_SIZE, LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
             fake_pairs = np.concatenate(
                 (X_train[index * BATCH_SIZE:(index + 1) * BATCH_SIZE, :, :, :], generated_images), axis=1)
             X = np.concatenate((real_pairs, fake_pairs))
-            y = np.zeros((20, 1, 64, 64))  # [1] * BATCH_SIZE + [0] * BATCH_SIZE
+            y = np.zeros((2 * BATCH_SIZE, 1, 64, 64))  # [1] * BATCH_SIZE + [0] * BATCH_SIZE
             d_loss = discriminator.train_on_batch(X, y)
             pred_temp = discriminator.predict(X)
             # print(np.shape(pred_temp))
             print("batch %d d_loss : %f" % (index, d_loss))
             discriminator.trainable = False
             g_loss = discriminator_on_generator.train_on_batch(
-                X_train[index * BATCH_SIZE:(index + 1) * BATCH_SIZE, :, :, :], [image_batch, np.ones((10, 1, 64, 64))])
+                X_train[index * BATCH_SIZE:(index + 1) * BATCH_SIZE, :, :, :], [image_batch, np.ones((BATCH_SIZE, 1, 64, 64))])
             discriminator.trainable = True
             print("batch %d g_loss : %f" % (index, g_loss[1]))
             if index % 20 == 0:
@@ -246,7 +244,7 @@ def train(BATCH_SIZE, LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
             index += 1
 
 
-def generate(BATCH_SIZE, nice=False):
+def generate(nice=False):
     photos = glob.glob(os.path.join('../data/test', '*.png'))
     for X_test, Y_test in chunks(photos, BATCH_SIZE):
         X_test = (X_test.astype(np.float32) - 127.5) / 127.5
@@ -322,5 +320,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.train:
-        train(128, args.load_weights, args.epochs, args.init_epoch)
-    generate(10)
+        train(args.load_weights, args.epochs, args.init_epoch)
+    generate()
