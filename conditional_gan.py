@@ -18,6 +18,7 @@ from keras.layers.normalization import BatchNormalization
 import math
 from scipy.misc import imread
 from scipy.misc import imsave
+from scipy.misc import imresize
 import time
 
 K.set_image_dim_ordering('th')
@@ -291,13 +292,13 @@ def get_data_from_files(photo_file_names, sketch_file_names=None):
 
     for i in range(0, len(photo_file_names)):
         file_name = photo_file_names[i]
-        data_X[i, :, :, :] = np.swapaxes(imread(file_name, mode='RGB'), 0, 2)
+        data_X[i, :, :, :] = np.swapaxes(imresize(imread(file_name, mode='RGB') (64,64)), 0, 2)
 
     if sketch_file_names:
         data_Y = np.zeros((len(sketch_file_names), 3, img_cols, img_rows))
         for i in range(0, len(sketch_file_names)):
             file_name = sketch_file_names[i]
-            data_Y[i, :, :, :] = np.swapaxes(imread(file_name, mode='RGB'), 0, 2)
+            data_Y[i, :, :, :] = np.swapaxes(imresize(imread(file_name, mode='RGB'), (64, 64)), 0, 2)
 
     return data_X, data_Y
 
