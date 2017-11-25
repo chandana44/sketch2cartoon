@@ -18,6 +18,7 @@ from keras.layers.normalization import BatchNormalization
 import math
 from scipy.misc import imread
 from scipy.misc import imsave
+import time
 
 K.set_image_dim_ordering('th')
 
@@ -33,6 +34,9 @@ BATCH_SIZE = 128
 GENERATOR_FILENAME = 'generator'
 DISCRIMINATOR_FILENAME = 'discriminator'
 
+# Returns formatted current time as string
+def get_time_string():
+    return time.strftime('%c') + ' '
 
 def chunks(l, m, n):
     """Yield successive n-sized chunks from l and m."""
@@ -207,14 +211,15 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
 
     for epoch in range(INIT_EPOCH, EPOCHS):
         index = 0
-        print("Epoch is", epoch)
-        print("Number of batches", int(len(photos) / BATCH_SIZE))
+        print(get_time_string() + " Epoch is", epoch)
+        print(get_time_string() +  " Number of batches", int(len(photos) / BATCH_SIZE))
 
         for X_train, Y_train in chunks(photos, sketches, BATCH_SIZE):
-            print 'batch number: ' + str(index)
+            print get_time_string() + ' batch number: ' + str(index)
             X_train = (X_train.astype(np.float32) - 127.5) / 127.5
             Y_train = (Y_train.astype(np.float32) - 127.5) / 127.5
             image_batch = Y_train
+            print(get_time_string() + " predicting...")
             generated_images = generator.predict(X_train)
             if index % 50 == 0:
                 image = combine_images(generated_images)
@@ -223,21 +228,23 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH):
                 imsave(str(epoch) + "_" + str(index) + ".png", image)
                 # Image.fromarray(image.astype(np.uint8)).save(str(epoch)+"_"+str(index)+".png")
 
-            real_pairs = np.concatenate((X_train[index * BATCH_SIZE:(index + 1) * BATCH_SIZE, :, :, :], image_batch),
+            print(get_time_string() + " training the discriminator...")
+            real_pairs = np.concatenate((X_train, image_batch),
                                         axis=1)
             fake_pairs = np.concatenate(
-                (X_train[index * BATCH_SIZE:(index + 1) * BATCH_SIZE, :, :, :], generated_images), axis=1)
+                (X_train, generated_images), axis=1)
             X = np.concatenate((real_pairs, fake_pairs))
             y = np.zeros((2 * BATCH_SIZE, 1, 64, 64))  # [1] * BATCH_SIZE + [0] * BATCH_SIZE
             d_loss = discriminator.train_on_batch(X, y)
             pred_temp = discriminator.predict(X)
             # print(np.shape(pred_temp))
-            print("batch %d d_loss : %f" % (index, d_loss))
+            print(get_time_string() + " batch %d d_loss : %f" % (index, d_loss))
+            print(get_time_string() + " training the generator...")
             discriminator.trainable = False
             g_loss = discriminator_on_generator.train_on_batch(
                 X_train[index * BATCH_SIZE:(index + 1) * BATCH_SIZE, :, :, :], [image_batch, np.ones((BATCH_SIZE, 1, 64, 64))])
             discriminator.trainable = True
-            print("batch %d g_loss : %f" % (index, g_loss[1]))
+            print(get_time_string() + " batch %d g_loss : %f" % (index, g_loss[1]))
             if index % 20 == 0:
                 generator.save_weights(GENERATOR_FILENAME, True)
                 discriminator.save_weights(DISCRIMINATOR_FILENAME, True)
