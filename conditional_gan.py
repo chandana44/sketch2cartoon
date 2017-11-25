@@ -329,6 +329,9 @@ if __name__ == '__main__':
     GENERATOR_FILENAME = args.generator
     DISCRIMINATOR_FILENAME = args.discriminator
 
+    if not os.path.exists(args.output_dir):
+        os.mkdir(args.output_dir)
+
     if args.train == 1:
         train(args.load_weights, args.epochs, args.init_epoch, args.train_photos, args.train_sketches, args.output_dir)
-    generate(args.test_photos)
+    generate(args.test_photos, args.output_dir)
