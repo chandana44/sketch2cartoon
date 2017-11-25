@@ -14,9 +14,22 @@ epochs=4
 train=1
 load_weights=0
 init_epoch=0
+
 generator='generator'$run
 discriminator='discriminator'$run
 output_dir='output'$run
+
+sample=0
+
+if [ "$sample" -eq 0 ]; then
+    train_photos='../data/yearbook_train_photos'
+    train_sketches='../data/yearbook_train_sketches'
+    test_photos='../data/yearbook_test_photos'
+else
+    train_photos='../data/yearbook_train_photos_sample'
+    train_sketches='../data/yearbook_train_sketches_sample'
+    test_photos='../data/yearbook_test_photos_sample'
+fi
 
 echo '--------------------------------- SBATCH SCRIPT -------------------------------------'
 cat ./sbatch_script
