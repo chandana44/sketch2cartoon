@@ -23,8 +23,8 @@ import time
 
 K.set_image_dim_ordering('th')
 
-img_rows = 256
-img_cols = 256
+img_rows = 64
+img_cols = 64
 SHAPE = 256
 BATCH = 4
 IN_CH = 3
