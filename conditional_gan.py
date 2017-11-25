@@ -142,8 +142,10 @@ def generator_containing_discriminator(generator, discriminator):
 
 
 def discriminator_loss(y_true, y_pred):
+    this_batch_size = len(y_pred)
     return K.mean(K.binary_crossentropy(K.flatten(y_pred), K.concatenate(
-        [K.ones_like(K.flatten(y_pred[:BATCH_SIZE, :, :, :])), K.zeros_like(K.flatten(y_pred[:BATCH_SIZE, :, :, :]))])),
+        [K.ones_like(K.flatten(y_pred[:this_batch_size/2, :, :, :])),
+         K.zeros_like(K.flatten(y_pred[:this_batch_size/2, :, :, :]))])),
                   axis=-1)
 
 
@@ -209,7 +211,7 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir
 
             print(get_time_string() + " Training the generator...")
             discriminator.trainable = False
-            g_loss = discriminator_on_generator.train_on_batch(X_train, [image_batch, np.ones((BATCH_SIZE, 1, 64, 64))])
+            g_loss = discriminator_on_generator.train_on_batch(X_train, [image_batch, np.ones((len(X_train), 1, 64, 64))])
             discriminator.trainable = True
             print(get_time_string() + " batch %d g_loss : %f" % (index, g_loss[1]))
 
