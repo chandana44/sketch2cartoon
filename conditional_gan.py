@@ -1,10 +1,13 @@
 
+import os
+
+os.environ['THEANO_FLAGS'] = "device=cuda0"
+
 from util import *
 
 import argparse
 import glob
 import math
-import os
 
 import numpy as np
 from keras import backend as K
