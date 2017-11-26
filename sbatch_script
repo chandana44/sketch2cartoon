@@ -15,8 +15,8 @@ train=1
 load_weights=0
 init_epoch=0
 
-generator='generator'$run
-discriminator='discriminator'$run
+generator='checkpoint/generator'$run
+discriminator='checkpoint/discriminator'$run
 output_dir='output'$run
 
 sample=0

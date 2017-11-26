@@ -160,8 +160,8 @@ def generator_l1_loss(y_true, y_pred):
     return K.mean(K.abs(K.flatten(y_pred) - K.flatten(y_true)), axis=-1)
 
 
-def get_checkpoint_file_name(file_name_prefix, epoch):
-    return file_name_prefix + '-epoch-' + str(epoch)
+def get_checkpoint_file_name_for_epoch(checkpoint_file_name_base, epoch):
+    return checkpoint_file_name_base + '-epoch-' + str(epoch)
 
 
 def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir, output_dir,
@@ -228,8 +228,8 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir
                 discriminator.save_weights(discriminator_checkpoint_file, True)
             index += 1
 
-        generator.save_weights(get_checkpoint_file_name(generator_checkpoint_file, epoch))
-        discriminator.save_weights(get_checkpoint_file_name(discriminator_checkpoint_file, epoch))
+        generator.save_weights(get_checkpoint_file_name_for_epoch(generator_checkpoint_file, epoch))
+        discriminator.save_weights(get_checkpoint_file_name_for_epoch(discriminator_checkpoint_file, epoch))
 
         file_name_prefix = 'validation-epoch-' + str(epoch) + '-'
         generate(YEARBOOK_TEST_PHOTOS_SAMPLE_PATH, output_dir, generator_checkpoint_file, discriminator_checkpoint_file,
@@ -324,8 +324,8 @@ if __name__ == '__main__':
     parser.add_argument('--generator', help='generator file name', dest="generator", default='generator')
     parser.add_argument('--discriminator', help='discriminator file name', dest="discriminator",
                         default='discriminator')
-    parser.add_argument('--output_dir', help='Output directory to store intermediate images and final result', dest="output_dir",
-                        default='output')
+    parser.add_argument('--output_dir', help='Output directory to store intermediate images and final result',
+                        dest="output_dir", default='output')
 
     parser.add_argument('--train_photos', help='training photos directory', dest="train_photos",
                         default='../data/yearbook_train_photos')
