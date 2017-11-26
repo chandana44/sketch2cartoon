@@ -31,8 +31,8 @@ OUT_CH = 3
 LAMBDA = 100
 NF = 64  # number of filter
 BATCH_SIZE = 128
-GENERATOR_FILENAME = ''
-DISCRIMINATOR_FILENAME = ''
+
+YEARBOOK_TEST_PHOTOS_SAMPLE_PATH = '../data/yearbook_test_photos_sample'
 
 
 def generator_model():
@@ -160,7 +160,12 @@ def generator_l1_loss(y_true, y_pred):
     return K.mean(K.abs(K.flatten(y_pred) - K.flatten(y_true)), axis=-1)
 
 
-def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir, output_dir):
+def get_checkpoint_file_name(file_name_prefix, epoch):
+    return file_name_prefix + '-epoch-' + str(epoch)
+
+
+def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir, output_dir,
+          generator_checkpoint_file, discriminator_checkpoint_file):
     photos = glob.glob(os.path.join(train_photos_dir, '*.png'))
     sketches = glob.glob(os.path.join(train_sketches_dir, '*.png'))
 
@@ -168,8 +173,8 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir
     generator = generator_model()
 
     if LOAD_WEIGHTS == 1:
-        generator.load_weights(GENERATOR_FILENAME)
-        discriminator.load_weights(DISCRIMINATOR_FILENAME)
+        generator.load_weights(generator_checkpoint_file)
+        discriminator.load_weights(discriminator_checkpoint_file)
 
     generator.summary()
     discriminator.summary()
@@ -219,23 +224,34 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir
             print(get_time_string() + " batch %d g_loss : %f" % (index, g_loss[1]))
 
             if index % 20 == 0:
-                generator.save_weights(GENERATOR_FILENAME, True)
-                discriminator.save_weights(DISCRIMINATOR_FILENAME, True)
+                generator.save_weights(generator_checkpoint_file, True)
+                discriminator.save_weights(discriminator_checkpoint_file, True)
             index += 1
 
+        generator.save_weights(get_checkpoint_file_name(generator_checkpoint_file, epoch))
+        discriminator.save_weights(get_checkpoint_file_name(discriminator_checkpoint_file, epoch))
 
-def generate(test_photos_dir, output_dir, nice=False):
+        file_name_prefix = 'validation-epoch-' + str(epoch) + '-'
+        generate(YEARBOOK_TEST_PHOTOS_SAMPLE_PATH, output_dir, generator_checkpoint_file, discriminator_checkpoint_file,
+                 file_name_prefix=file_name_prefix)
+
+    generator.save_weights(generator_checkpoint_file, True)
+    discriminator.save_weights(discriminator_checkpoint_file, True)
+
+
+def generate(test_photos_dir, output_dir, generator_checkpoint_file, discriminator_checkpoint_file,
+             file_name_prefix='', nice=False):
     photos = glob.glob(os.path.join(test_photos_dir, '*.png'))
     start = 0
     for X_test, Y_test in chunks_test(photos, BATCH_SIZE):
         X_test = (X_test.astype(np.float32) - 127.5) / 127.5
         generator = generator_model()
         generator.compile(loss='binary_crossentropy', optimizer="SGD")
-        generator.load_weights(GENERATOR_FILENAME)
+        generator.load_weights(generator_checkpoint_file)
         if nice:
             discriminator = discriminator_model()
             discriminator.compile(loss='binary_crossentropy', optimizer="SGD")
-            discriminator.load_weights(DISCRIMINATOR_FILENAME)
+            discriminator.load_weights(discriminator_checkpoint_file)
 
             generated_images = generator.predict(X_test, verbose=1)
             d_pret = discriminator.predict(generated_images, verbose=1)
@@ -257,7 +273,7 @@ def generate(test_photos_dir, output_dir, nice=False):
             image = image * 127.5 + 127.5
             image = np.swapaxes(image, 0, 2)
             image_name = photos[i + start].split('/')[-1]
-            imsave(output_dir + '/' + image_name, image)
+            imsave(output_dir + '/' + file_name_prefix + image_name, image)
         start += len(X_test)
 
 
@@ -321,12 +337,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(get_time_string() + ' Args provided: ' + str(args))
 
-    GENERATOR_FILENAME = args.generator
-    DISCRIMINATOR_FILENAME = args.discriminator
-
     if not os.path.exists(args.output_dir):
         os.mkdir(args.output_dir)
 
     if args.train == 1:
-        train(args.load_weights, args.epochs, args.init_epoch, args.train_photos, args.train_sketches, args.output_dir)
-    generate(args.test_photos, args.output_dir)
+        train(args.load_weights, args.epochs, args.init_epoch, args.train_photos, args.train_sketches, args.output_dir,
+              args.generator, args.discriminator)
+    generate(args.test_photos, args.output_dir, args.generator, args.discriminator)
