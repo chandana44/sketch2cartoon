@@ -5,4 +5,4 @@ pyargs="$*"
 
 module load cuda/8.0
 
-python -u conditional_gan.py $pyargs
+python -u src/conditional_gan.py $pyargs
