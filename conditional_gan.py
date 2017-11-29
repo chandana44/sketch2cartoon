@@ -24,8 +24,6 @@ K.set_image_dim_ordering('th')
 
 img_rows = 64
 img_cols = 64
-SHAPE = 256
-BATCH = 4
 IN_CH = 3
 OUT_CH = 3
 LAMBDA = 100
@@ -283,13 +281,13 @@ def get_data_from_files(photo_file_names, sketch_file_names=None):
 
     for i in range(0, len(photo_file_names)):
         file_name = photo_file_names[i]
-        data_X[i, :, :, :] = np.swapaxes(imresize(imread(file_name, mode='RGB'), (64, 64)), 0, 2)
+        data_X[i, :, :, :] = np.swapaxes(imresize(imread(file_name, mode='RGB'), (img_rows, img_cols)), 0, 2)
 
     if sketch_file_names:
         data_Y = np.zeros((len(sketch_file_names), 3, img_cols, img_rows))
         for i in range(0, len(sketch_file_names)):
             file_name = sketch_file_names[i]
-            data_Y[i, :, :, :] = np.swapaxes(imresize(imread(file_name, mode='RGB'), (64, 64)), 0, 2)
+            data_Y[i, :, :, :] = np.swapaxes(imresize(imread(file_name, mode='RGB'), (img_rows, img_cols)), 0, 2)
 
     return data_X, data_Y
 
