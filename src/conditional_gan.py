@@ -4,6 +4,7 @@ import os
 os.environ['THEANO_FLAGS'] = "device=cuda0"
 
 from util import *
+import util
 
 import argparse
 import glob
@@ -21,6 +22,17 @@ from scipy.misc import imresize
 from scipy.misc import imsave
 
 K.set_image_dim_ordering('th')
+
+
+img_rows = util.img_rows
+img_cols = util.img_cols
+IN_CH = util.IN_CH
+OUT_CH = util.OUT_CH
+LAMBDA = util.LAMBDA
+NF = util.NF  # number of filter
+BATCH_SIZE = util.BATCH_SIZE
+
+YEARBOOK_TEST_PHOTOS_SAMPLE_PATH = '../data/yearbook_test_photos_sample'
 
 
 def generator_model():

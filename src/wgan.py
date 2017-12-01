@@ -13,11 +13,22 @@ import keras.backend as K
 import matplotlib.pyplot as plt
 
 from util import *
+import util
 import sys
 
 import numpy as np
 
 K.set_image_dim_ordering('th')
+
+img_rows = util.img_rows
+img_cols = util.img_cols
+IN_CH = util.IN_CH
+OUT_CH = util.OUT_CH
+LAMBDA = util.LAMBDA
+NF = util.NF  # number of filter
+BATCH_SIZE = util.BATCH_SIZE
+
+YEARBOOK_TEST_PHOTOS_SAMPLE_PATH = '../data/yearbook_test_photos_sample'
 
 
 class WGAN():
