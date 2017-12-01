@@ -3,6 +3,16 @@ from theano import function, config, shared, tensor
 import numpy as np
 import time
 
+img_rows = 64
+img_cols = 64
+IN_CH = 3
+OUT_CH = 3
+LAMBDA = 100
+NF = 64  # number of filter
+BATCH_SIZE = 128
+
+YEARBOOK_TEST_PHOTOS_SAMPLE_PATH = '../data/yearbook_test_photos_sample'
+
 
 # Returns formatted current time as string
 def get_time_string():
