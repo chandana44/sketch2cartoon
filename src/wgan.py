@@ -55,19 +55,7 @@ class WGAN():
             self.generator.load_weights(generator_checkpoint_file)
         self.generator.compile(loss=self.wasserstein_loss, optimizer=optimizer)
 
-        # The generator takes noise as input and generated imgs
-        z = Input(shape=(100,))
-        img = self.generator(z)
-
-        # For the combined model we will only train the generator
-        self.discriminator.trainable = False
-
-        # The discriminator takes generated images as input and determines validity
-        valid = self.discriminator(img)
-
-        # The combined model  (stacked generator and discriminator) takes
-        # noise as input => generates images => determines validity
-        self.combined = Model(z, valid)
+        self.combined = generator_containing_discriminator(self.generator, self.discriminator)
         self.combined.compile(loss=self.wasserstein_loss,
                               optimizer=optimizer,
                               metrics=['accuracy'])
@@ -75,64 +63,103 @@ class WGAN():
     def wasserstein_loss(self, y_true, y_pred):
         return K.mean(y_true * y_pred)
 
+    def generator_containing_discriminator(self, generator, discriminator):
+        inputs = Input((IN_CH, img_cols, img_rows))
+        x_generator = generator(inputs)
+
+        merged = merge([inputs, x_generator], mode='concat', concat_axis=1)
+        discriminator.trainable = False
+        x_discriminator = discriminator(merged)
+
+        model = Model(input=inputs, output=[x_generator, x_discriminator])
+
+        return model
+
     def build_generator(self):
 
-        noise_shape = (100,)
+        global BATCH_SIZE
+        # imgs: input: 256x256xch
+        # U-Net structure, must change to relu
+        inputs = Input((IN_CH, img_cols, img_rows))
 
-        model = Sequential()
+        e1 = BatchNormalization()(inputs)
+        e1 = Convolution2D(64, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e1)
+        e1 = BatchNormalization()(e1)
+        e2 = Convolution2D(128, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e1)
+        e2 = BatchNormalization()(e2)
 
-        model.add(Dense(128 * 7 * 7, activation="relu", input_shape=noise_shape))
-        model.add(Reshape((7, 7, 128)))
-        model.add(BatchNormalization(momentum=0.8))
-        model.add(UpSampling2D())
-        model.add(Conv2D(128, kernel_size=4, padding="same"))
-        model.add(Activation("relu"))
-        model.add(BatchNormalization(momentum=0.8))
-        model.add(UpSampling2D())
-        model.add(Conv2D(64, kernel_size=4, padding="same"))
-        model.add(Activation("relu"))
-        model.add(BatchNormalization(momentum=0.8))
-        model.add(Conv2D(1, kernel_size=4, padding="same"))
-        model.add(Activation("tanh"))
+        e3 = Convolution2D(256, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e2)
+        e3 = BatchNormalization()(e3)
+        e4 = Convolution2D(512, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e3)
+        e4 = BatchNormalization()(e4)
 
-        model.summary()
+        e5 = Convolution2D(512, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e4)
+        e5 = BatchNormalization()(e5)
+        e6 = Convolution2D(512, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e5)
+        e6 = BatchNormalization()(e6)
 
-        noise = Input(shape=noise_shape)
-        img = model(noise)
+        d1 = Deconvolution2D(512, 5, 5, subsample=(2, 2), activation='relu', init='uniform',
+                             output_shape=(None, 512, 2, 2),
+                             border_mode='same')(e6)
+        d1 = merge([d1, e5], mode='concat', concat_axis=1)
+        d1 = BatchNormalization()(d1)
 
-        return Model(noise, img)
+        d2 = Deconvolution2D(512, 5, 5, subsample=(2, 2), activation='relu', init='uniform',
+                             output_shape=(None, 512, 4, 4),
+                             border_mode='same')(d1)
+        d2 = merge([d2, e4], mode='concat', concat_axis=1)
+        d2 = BatchNormalization()(d2)
+
+        d3 = Dropout(0.2)(d2)
+        d3 = Deconvolution2D(512, 5, 5, subsample=(2, 2), activation='relu', init='uniform',
+                             output_shape=(None, 512, 8, 8),
+                             border_mode='same')(d3)
+        d3 = merge([d3, e3], mode='concat', concat_axis=1)
+        d3 = BatchNormalization()(d3)
+
+        d4 = Dropout(0.2)(d3)
+        d4 = Deconvolution2D(512, 5, 5, subsample=(2, 2), activation='relu', init='uniform',
+                             output_shape=(None, 512, 16, 16), border_mode='same')(d4)
+        d4 = merge([d4, e2], mode='concat', concat_axis=1)
+        d4 = BatchNormalization()(d4)
+
+        d5 = Dropout(0.2)(d4)
+        d5 = Deconvolution2D(256, 5, 5, subsample=(2, 2), activation='relu', init='uniform',
+                             output_shape=(None, 256, 32, 32), border_mode='same')(d5)
+        d5 = merge([d5, e1], mode='concat', concat_axis=1)
+        d5 = BatchNormalization()(d5)
+
+        d6 = Deconvolution2D(3, 5, 5, subsample=(2, 2), activation='relu', init='uniform',
+                             output_shape=(None, 3, 64, 64),
+                             border_mode='same')(d5)
+
+        d6 = BatchNormalization()(d6)
+        d7 = Activation('tanh')(d6)
+
+        model = Model(input=inputs, output=d7)
+        return model
 
     def build_discriminator(self):
 
-        img_shape = (self.img_rows, self.img_cols, self.channels)
-
+        """ return a (b, 1) logits"""
         model = Sequential()
+        model.add(Convolution2D(64, 4, 4, border_mode='same', input_shape=(IN_CH, img_cols, img_rows)))
+        model.add(BatchNormalization())
+        model.add(Activation('tanh'))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
+        model.add(Convolution2D(128, 4, 4, border_mode='same'))
+        model.add(BatchNormalization())
+        model.add(Activation('tanh'))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
+        model.add(Convolution2D(512, 4, 4, border_mode='same'))
+        model.add(BatchNormalization())
+        model.add(Activation('tanh'))
+        model.add(Convolution2D(1, 4, 4, border_mode='same'))
+        model.add(BatchNormalization())
+        model.add(Activation('tanh'))
 
-        model.add(Conv2D(16, kernel_size=3, strides=2, input_shape=img_shape, padding="same"))
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(Dropout(0.25))
-        model.add(Conv2D(32, kernel_size=3, strides=2, padding="same"))
-        model.add(ZeroPadding2D(padding=((0, 1), (0, 1))))
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(Dropout(0.25))
-        model.add(BatchNormalization(momentum=0.8))
-        model.add(Conv2D(64, kernel_size=3, strides=2, padding="same"))
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(Dropout(0.25))
-        model.add(BatchNormalization(momentum=0.8))
-        model.add(Conv2D(128, kernel_size=3, strides=1, padding="same"))
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(Dropout(0.25))
-
-        model.add(Flatten())
-
-        model.summary()
-
-        img = Input(shape=img_shape)
-        features = model(img)
-        valid = Dense(1, activation="linear")(features)
-
-        return Model(img, valid)
+        model.add(Activation('sigmoid'))
+        return model
 
     def train(self, num_epochs, initial_epoch, train_photos_dir, train_sketches_dir, output_dir,
               generator_checkpoint_file, discriminator_checkpoint_file,
@@ -153,6 +180,16 @@ class WGAN():
                 X_train = (X_train.astype(np.float32) - 127.5) / 127.5
                 Y_train = (Y_train.astype(np.float32) - 127.5) / 127.5
 
+                image_batch = Y_train
+                print(get_time_string() + " Predicting...")
+                generated_images = self.generator.predict(X_train)
+                if index % 50 == 0:
+                    image = combine_images(generated_images)
+                    image = image * 127.5 + 127.5
+                    image = np.swapaxes(image, 0, 2)
+                    imsave(output_dir + "/epoch-" + str(epoch) + "_batch-" + str(index) + ".png", image)
+                    # Image.fromarray(image.astype(np.uint8)).save(str(epoch)+"_"+str(index)+".png")
+
                 gen_iterations += 1
 
                 if gen_iterations <= 225 or gen_iterations % 2500 == 0:
@@ -160,25 +197,20 @@ class WGAN():
                 else:
                     self.n_critic = 5
 
-                half_batch = BATCH_SIZE / 2
-
                 # ---------------------
                 #  Train Discriminator
                 # ---------------------
 
-                # Select a random half batch of images
-                idx = np.random.randint(0, X_train.shape[0], half_batch)
-                true_imgs = Y_train[idx]
-
-                noise = np.random.normal(0, 1, (half_batch, 100))
-
-                # Generate a half batch of new images
-                gen_imgs = self.generator.predict(noise)
+                print(get_time_string() + " Training the discriminator...")
 
                 # Train the discriminator
-                d_loss_real = self.discriminator.train_on_batch(true_imgs, -np.ones((half_batch, 1)))
-                d_loss_fake = self.discriminator.train_on_batch(gen_imgs, np.ones((half_batch, 1)))
+                d_loss_real = self.discriminator.train_on_batch(image_batch, np.ones((len(X_train), 1, 64, 64)))
+                d_loss_fake = self.discriminator.train_on_batch(generated_images, -np.ones((len(X_train), 1, 64, 64)))
                 d_loss = 0.5 * np.add(d_loss_fake, d_loss_real)
+
+                # pred_temp = discriminator.predict(X)
+                # print(np.shape(pred_temp))
+                print(get_time_string() + " batch %d d_loss : %f" % (index, d_loss))
 
                 # Clip discriminator weights
                 for l in self.discriminator.layers:
@@ -190,10 +222,8 @@ class WGAN():
                 #  Train Generator
                 # ---------------------
                 if gen_iterations % self.n_critic == 0:
-                    noise = np.random.normal(0, 1, (BATCH_SIZE, 100))
-
                     # Train the generator
-                    g_loss = self.combined.train_on_batch(noise, -np.ones((BATCH_SIZE, 1)))
+                    g_loss = self.combined.train_on_batch.train_on_batch(X_train, [image_batch, np.ones((len(X_train), 1, 64, 64))])
 
                     # Plot the progress
                     print(get_time_string() + "%d [D loss: %f] [G loss: %f]" % (epoch, 1 - d_loss[0], 1 - g_loss[0]))
@@ -201,15 +231,21 @@ class WGAN():
                 if gen_iterations % save_image_frequency == 0:
                     self.save_imgs(epoch, gen_iterations, output_dir)
 
+                if index % 20 == 0:
+                    self.generator.save_weights(generator_checkpoint_file, True)
+                    self.discriminator.save_weights(discriminator_checkpoint_file, True)
+                index += 1
+
             self.generator.save_weights(get_checkpoint_file_name_for_epoch(generator_checkpoint_file, epoch))
             self.discriminator.save_weights(get_checkpoint_file_name_for_epoch(discriminator_checkpoint_file, epoch))
 
             file_name_prefix = 'validation-epoch-' + str(epoch) + '-'
-            self.generate_test_sketches(YEARBOOK_TEST_PHOTOS_SAMPLE_PATH, output_dir,
-                                        file_name_prefix=file_name_prefix)
+            generate(YEARBOOK_TEST_PHOTOS_SAMPLE_PATH, output_dir, generator_checkpoint_file,
+                     discriminator_checkpoint_file,
+                     file_name_prefix=file_name_prefix)
 
         self.generator.save_weights(generator_checkpoint_file, True)
-        self.discriminator.save_weights(discriminator_checkpoint_file, True)
+        self.discriminator.save_weights(discriminator_checkpoint_file, True)  # Select a random half batch of images
 
     def save_imgs(self, epoch, gen_iterations, output_dir):
         r, c = 5, 5
