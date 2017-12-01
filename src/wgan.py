@@ -239,9 +239,7 @@ class WGAN():
             self.discriminator.save_weights(get_checkpoint_file_name_for_epoch(discriminator_checkpoint_file, epoch))
 
             file_name_prefix = 'validation-epoch-' + str(epoch) + '-'
-            generate(YEARBOOK_TEST_PHOTOS_SAMPLE_PATH, output_dir, generator_checkpoint_file,
-                     discriminator_checkpoint_file,
-                     file_name_prefix=file_name_prefix)
+            self.generate_test_sketches(YEARBOOK_TEST_PHOTOS_SAMPLE_PATH, output_dir, file_name_prefix=file_name_prefix)
 
         self.generator.save_weights(generator_checkpoint_file, True)
         self.discriminator.save_weights(discriminator_checkpoint_file, True)  # Select a random half batch of images

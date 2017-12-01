@@ -140,7 +140,7 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir
 
         file_name_prefix = 'validation-epoch-' + str(epoch) + '-'
         generate(YEARBOOK_TEST_PHOTOS_SAMPLE_PATH, output_dir, generator_checkpoint_file, discriminator_checkpoint_file,
-                 file_name_prefix=file_name_prefix)
+                 img_rows,img_cols, batch_size, file_name_prefix=file_name_prefix)
 
     generator.save_weights(generator_checkpoint_file, True)
 
