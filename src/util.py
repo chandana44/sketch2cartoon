@@ -12,13 +12,13 @@ def get_time_string():
 def chunks(l, m, n, img_rows, img_cols):
     """Yield successive n-sized chunks from l and m."""
     for i in range(0, len(l), n):
-        yield get_data_from_files(l[i: i + n], m[i: i + n], img_rows, img_cols)
+        yield get_data_from_files(img_rows, img_cols, l[i: i + n], m[i: i + n])
 
 
 def chunks_test(l, n, img_rows, img_cols):
     """Yield successive n-sized chunks from l and m."""
     for i in range(0, len(l), n):
-        yield get_data_from_files(l[i: i + n], img_rows, img_cols)
+        yield get_data_from_files(img_rows, img_cols, l[i: i + n])
 
 
 def is_using_gpu():
@@ -43,7 +43,7 @@ def is_using_gpu():
         return True
 
 
-def get_data_from_files(photo_file_names, img_rows, img_cols, sketch_file_names=None):
+def get_data_from_files(img_rows, img_cols, photo_file_names, sketch_file_names=None):
     data_X = np.zeros((len(photo_file_names), 3, img_cols, img_rows))
     data_Y = []
 
