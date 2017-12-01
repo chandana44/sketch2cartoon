@@ -173,7 +173,7 @@ class WGAN():
             print(get_time_string() + " Epoch is", epoch)
             print(get_time_string() + " Number of batches", int(len(photos) / self.batch_size))
 
-            for X_train, Y_train in chunks(photos, sketches, self.batch_size):
+            for X_train, Y_train in chunks(photos, sketches, self.batch_size, self.img_rows, self.img_cols):
                 print(get_time_string() + ' Batch number: ' + str(index))
 
                 X_train = (X_train.astype(np.float32) - 127.5) / 127.5
@@ -269,7 +269,7 @@ class WGAN():
                                file_name_prefix=''):
         photos = glob.glob(os.path.join(test_photos_dir, '*.png'))
         start = 0
-        for X_test, Y_test in chunks_test(photos, self.batch_size):
+        for X_test, Y_test in chunks_test(photos, self.batch_size, self.img_rows, self.img_cols):
             X_test = (X_test.astype(np.float32) - 127.5) / 127.5
 
             generated_images = self.generator.predict(X_test)

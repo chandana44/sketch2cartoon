@@ -122,7 +122,7 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir
         print(get_time_string() + " Epoch is", epoch)
         print(get_time_string() + " Number of batches", int(len(photos) / batch_size))
 
-        for X_train, Y_train in chunks(photos, sketches, batch_size):
+        for X_train, Y_train in chunks(photos, sketches, batch_size, img_rows, img_cols):
             print(get_time_string() + ' Batch number: ' + str(index))
             X_train = (X_train.astype(np.float32) - 127.5) / 127.5
             Y_train = (Y_train.astype(np.float32) - 127.5) / 127.5
@@ -149,7 +149,7 @@ def generate(test_photos_dir, output_dir, generator_checkpoint_file, discriminat
              img_rows, img_cols, batch_size, file_name_prefix=''):
     photos = glob.glob(os.path.join(test_photos_dir, '*.png'))
     start = 0
-    for X_test, Y_test in chunks_test(photos, batch_size):
+    for X_test, Y_test in chunks_test(photos, batch_size, img_rows, img_cols):
         X_test = (X_test.astype(np.float32) - 127.5) / 127.5
         generator = generator_model(img_rows, img_cols)
         generator.compile(loss='binary_crossentropy', optimizer="SGD")

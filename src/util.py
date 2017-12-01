@@ -9,16 +9,16 @@ def get_time_string():
     return time.strftime('%c') + ' '
 
 
-def chunks(l, m, n):
+def chunks(l, m, n, img_rows, img_cols):
     """Yield successive n-sized chunks from l and m."""
     for i in range(0, len(l), n):
-        yield get_data_from_files(l[i: i + n], m[i: i + n])
+        yield get_data_from_files(l[i: i + n], m[i: i + n], img_rows, img_cols)
 
 
-def chunks_test(l, n):
+def chunks_test(l, n, img_rows, img_cols):
     """Yield successive n-sized chunks from l and m."""
     for i in range(0, len(l), n):
-        yield get_data_from_files(l[i: i + n])
+        yield get_data_from_files(l[i: i + n], img_rows, img_cols)
 
 
 def is_using_gpu():
