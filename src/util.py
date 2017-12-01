@@ -3,16 +3,6 @@ from theano import function, config, shared, tensor
 import numpy as np
 import time
 
-img_rows = 64
-img_cols = 64
-IN_CH = 3
-OUT_CH = 3
-LAMBDA = 100
-NF = 64  # number of filter
-BATCH_SIZE = 128
-
-YEARBOOK_TEST_PHOTOS_SAMPLE_PATH = '../data/yearbook_test_photos_sample'
-
 
 # Returns formatted current time as string
 def get_time_string():
@@ -51,3 +41,20 @@ def is_using_gpu():
         return False
     else:
         return True
+
+
+def get_data_from_files(photo_file_names, img_rows, img_cols, sketch_file_names=None):
+    data_X = np.zeros((len(photo_file_names), 3, img_cols, img_rows))
+    data_Y = []
+
+    for i in range(0, len(photo_file_names)):
+        file_name = photo_file_names[i]
+        data_X[i, :, :, :] = np.swapaxes(imresize(imread(file_name, mode='RGB'), (img_rows, img_cols)), 0, 2)
+
+    if sketch_file_names:
+        data_Y = np.zeros((len(sketch_file_names), 3, img_cols, img_rows))
+        for i in range(0, len(sketch_file_names)):
+            file_name = sketch_file_names[i]
+            data_Y[i, :, :, :] = np.swapaxes(imresize(imread(file_name, mode='RGB'), (img_rows, img_cols)), 0, 2)
+
+    return data_X, data_Y

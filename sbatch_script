@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -A cs395t_f17 #project group
-#SBATCH -J logs/s2c           # job name
-#SBATCH -o logs/s2c.o%j       # output and error file name (%j expands to jobID)
+#SBATCH -J logs/s2c-run           # job name
+#SBATCH -o logs/s2c-run.log       # output and error file name (%j expands to jobID)
 #SBATCH -n 1 -N 1               # total number of mpi tasks requested
 #SBATCH -p gpu     # queue (partition) -- normal, development, etc.
 #SBATCH -t 12:00:00        # run time (hh:mm:ss) - 1.5 hours
@@ -14,6 +14,9 @@ epochs=4
 train=1
 load_weights=0
 init_epoch=0
+
+img_dim=64
+batch_size=128
 
 generator='checkpoint/generator'$run
 discriminator='checkpoint/discriminator'$run
@@ -35,4 +38,4 @@ echo '--------------------------------- SBATCH SCRIPT --------------------------
 cat ./sbatch_script
 echo '-------------------------------------------------------------------------------------'
 
-./run.sh --epochs=$epochs --train=$train --load_weights=$load_weights --initial_epoch=$init_epoch --generator=$generator --discriminator=$discriminator --output_dir=$output_dir --train_photos=$train_photos --train_sketches=$train_sketches --test_photos=$test_photos
+./run.sh --epochs=$epochs --train=$train --load_weights=$load_weights --initial_epoch=$init_epoch --generator=$generator --discriminator=$discriminator --output_dir=$output_dir --train_photos=$train_photos --train_sketches=$train_sketches --test_photos=$test_photos --img_rows=$img_dim --img_cols=$img_dim --batch_size=$batch_size

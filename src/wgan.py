@@ -20,21 +20,20 @@ import numpy as np
 
 K.set_image_dim_ordering('th')
 
-img_rows = util.img_rows
-img_cols = util.img_cols
-IN_CH = util.IN_CH
-OUT_CH = util.OUT_CH
-LAMBDA = util.LAMBDA
-NF = util.NF  # number of filter
-BATCH_SIZE = util.BATCH_SIZE
+IN_CH = 3
+OUT_CH = 3
+LAMBDA = 100
+NF = 64  # number of filter
 
 YEARBOOK_TEST_PHOTOS_SAMPLE_PATH = '../data/yearbook_test_photos_sample'
 
 
 class WGAN():
-    def __init__(self, load_weights, generator_checkpoint_file, discriminator_checkpoint_file):
+    def __init__(self, load_weights, generator_checkpoint_file, discriminator_checkpoint_file, img_rows,
+                 img_cols, batch_size):
         self.img_rows = img_rows
         self.img_cols = img_cols
+        self.batch_size = batch_size
         self.channels = IN_CH
 
         # Following parameter and optimizer set as recommended in paper
@@ -65,7 +64,7 @@ class WGAN():
         return K.mean(y_true * y_pred)
 
     def generator_containing_discriminator(self, generator, discriminator):
-        inputs = Input((IN_CH, img_cols, img_rows))
+        inputs = Input((IN_CH, self.img_cols, self.img_rows))
         x_generator = generator(inputs)
 
         merged = merge([inputs, x_generator], mode='concat', concat_axis=1)
@@ -78,10 +77,9 @@ class WGAN():
 
     def build_generator(self):
 
-        global BATCH_SIZE
         # imgs: input: 256x256xch
         # U-Net structure, must change to relu
-        inputs = Input((IN_CH, img_cols, img_rows))
+        inputs = Input((IN_CH, self.img_cols, self.img_rows))
 
         e1 = BatchNormalization()(inputs)
         e1 = Convolution2D(64, 4, 4, subsample=(2, 2), activation='relu', init='uniform', border_mode='same')(e1)
@@ -144,7 +142,7 @@ class WGAN():
 
         """ return a (b, 1) logits"""
         model = Sequential()
-        model.add(Convolution2D(64, 4, 4, border_mode='same', input_shape=(IN_CH, img_cols, img_rows)))
+        model.add(Convolution2D(64, 4, 4, border_mode='same', input_shape=(IN_CH, self.img_cols, self.img_rows)))
         model.add(BatchNormalization())
         model.add(Activation('tanh'))
         model.add(MaxPooling2D(pool_size=(2, 2)))
@@ -173,9 +171,9 @@ class WGAN():
         for epoch in range(initial_epoch, num_epochs):
             index = 0
             print(get_time_string() + " Epoch is", epoch)
-            print(get_time_string() + " Number of batches", int(len(photos) / BATCH_SIZE))
+            print(get_time_string() + " Number of batches", int(len(photos) / self.batch_size))
 
-            for X_train, Y_train in chunks(photos, sketches, BATCH_SIZE):
+            for X_train, Y_train in chunks(photos, sketches, self.batch_size):
                 print(get_time_string() + ' Batch number: ' + str(index))
 
                 X_train = (X_train.astype(np.float32) - 127.5) / 127.5
@@ -271,7 +269,7 @@ class WGAN():
                                file_name_prefix=''):
         photos = glob.glob(os.path.join(test_photos_dir, '*.png'))
         start = 0
-        for X_test, Y_test in chunks_test(photos, BATCH_SIZE):
+        for X_test, Y_test in chunks_test(photos, self.batch_size):
             X_test = (X_test.astype(np.float32) - 127.5) / 127.5
 
             generated_images = self.generator.predict(X_test)
@@ -313,13 +311,20 @@ if __name__ == '__main__':
     parser.add_argument('--test_photos', help='test photos directory', dest="test_photos",
                         default='../data/yearbook_test_photos')
 
+    parser.add_argument('--img_rows', help='num rows', dest="img_rows",
+                        default=64, type=int)
+    parser.add_argument('--img_cols', help='num cols', dest="img_cols",
+                        default=64, type=int)
+    parser.add_argument('--batch_size', help='batch size', dest="batch_size",
+                        default=128, type=int)
+
     args = parser.parse_args()
     print(get_time_string() + ' Args provided: ' + str(args))
 
     if not os.path.exists(args.output_dir):
         os.mkdir(args.output_dir)
 
-    wgan = WGAN(args.load_weights, args.generator, args.discriminator)
+    wgan = WGAN(args.load_weights, args.generator, args.discriminator, args.img_rows, args.img_cols, args.batch_size)
     if args.train == 1:
         wgan.train(num_epochs=args.epochs, initial_epoch=args.init_epoch, train_photos_dir=args.train_photos,
                    train_sketches_dir=args.train_sketches, output_dir=args.output_dir,

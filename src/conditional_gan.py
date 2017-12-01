@@ -4,7 +4,6 @@ import os
 os.environ['THEANO_FLAGS'] = "device=cuda0"
 
 from util import *
-import util
 
 import argparse
 import glob
@@ -24,19 +23,15 @@ from scipy.misc import imsave
 K.set_image_dim_ordering('th')
 
 
-img_rows = util.img_rows
-img_cols = util.img_cols
-IN_CH = util.IN_CH
-OUT_CH = util.OUT_CH
-LAMBDA = util.LAMBDA
-NF = util.NF  # number of filter
-BATCH_SIZE = util.BATCH_SIZE
+IN_CH = 3
+OUT_CH = 3
+LAMBDA = 100
+NF = 64  # number of filter
 
 YEARBOOK_TEST_PHOTOS_SAMPLE_PATH = '../data/yearbook_test_photos_sample'
 
 
-def generator_model():
-    global BATCH_SIZE
+def generator_model(img_rows, img_cols):
     # imgs: input: 256x256xch
     # U-Net structure, must change to relu
     inputs = Input((IN_CH, img_cols, img_rows))
@@ -95,7 +90,7 @@ def generator_model():
     return model
 
 
-def discriminator_model():
+def discriminator_model(img_rows, img_cols):
     """ return a (b, 1) logits"""
     model = Sequential()
     model.add(Convolution2D(64, 4, 4, border_mode='same', input_shape=(IN_CH * 2, img_cols, img_rows)))
@@ -131,7 +126,7 @@ def combine_images(generated_images):
     return image
 
 
-def generator_containing_discriminator(generator, discriminator):
+def generator_containing_discriminator(generator, discriminator, img_rows, img_cols):
     inputs = Input((IN_CH, img_cols, img_rows))
     x_generator = generator(inputs)
 
@@ -165,12 +160,12 @@ def get_checkpoint_file_name_for_epoch(checkpoint_file_name_base, epoch):
 
 
 def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir, output_dir,
-          generator_checkpoint_file, discriminator_checkpoint_file):
+          generator_checkpoint_file, discriminator_checkpoint_file, img_rows, img_cols, batch_size):
     photos = glob.glob(os.path.join(train_photos_dir, '*.png'))
     sketches = glob.glob(os.path.join(train_sketches_dir, '*.png'))
 
-    discriminator = discriminator_model()
-    generator = generator_model()
+    discriminator = discriminator_model(img_rows, img_cols)
+    generator = generator_model(img_rows, img_cols)
 
     if LOAD_WEIGHTS == 1:
         generator.load_weights(generator_checkpoint_file)
@@ -179,7 +174,7 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir
     generator.summary()
     discriminator.summary()
 
-    discriminator_on_generator = generator_containing_discriminator(generator, discriminator)
+    discriminator_on_generator = generator_containing_discriminator(generator, discriminator, img_rows, img_cols)
 
     generator.compile(loss='mse', optimizer="rmsprop")
     discriminator_on_generator.compile(loss=[generator_l1_loss, discriminator_on_generator_loss], optimizer="rmsprop")
@@ -189,9 +184,9 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir
     for epoch in range(INIT_EPOCH, EPOCHS):
         index = 0
         print(get_time_string() + " Epoch is", epoch)
-        print(get_time_string() + " Number of batches", int(len(photos) / BATCH_SIZE))
+        print(get_time_string() + " Number of batches", int(len(photos) / batch_size))
 
-        for X_train, Y_train in chunks(photos, sketches, BATCH_SIZE):
+        for X_train, Y_train in chunks(photos, sketches, batch_size):
             print(get_time_string() + ' Batch number: ' + str(index))
             X_train = (X_train.astype(np.float32) - 127.5) / 127.5
             Y_train = (Y_train.astype(np.float32) - 127.5) / 127.5
@@ -233,34 +228,35 @@ def train(LOAD_WEIGHTS, EPOCHS, INIT_EPOCH, train_photos_dir, train_sketches_dir
 
         file_name_prefix = 'validation-epoch-' + str(epoch) + '-'
         generate(YEARBOOK_TEST_PHOTOS_SAMPLE_PATH, output_dir, generator_checkpoint_file, discriminator_checkpoint_file,
-                 file_name_prefix=file_name_prefix)
+                 img_rows, img_cols, batch_size, file_name_prefix=file_name_prefix)
 
     generator.save_weights(generator_checkpoint_file, True)
     discriminator.save_weights(discriminator_checkpoint_file, True)
 
 
-def generate(test_photos_dir, output_dir, generator_checkpoint_file, discriminator_checkpoint_file,
+def generate(test_photos_dir, output_dir, generator_checkpoint_file, discriminator_checkpoint_file, img_rows,
+             img_cols, batch_size,
              file_name_prefix='', nice=False):
     photos = glob.glob(os.path.join(test_photos_dir, '*.png'))
     start = 0
-    for X_test, Y_test in chunks_test(photos, BATCH_SIZE):
+    for X_test, Y_test in chunks_test(photos, batch_size):
         X_test = (X_test.astype(np.float32) - 127.5) / 127.5
-        generator = generator_model()
+        generator = generator_model(img_rows, img_cols)
         generator.compile(loss='binary_crossentropy', optimizer="SGD")
         generator.load_weights(generator_checkpoint_file)
         if nice:
-            discriminator = discriminator_model()
+            discriminator = discriminator_model(img_rows, img_cols)
             discriminator.compile(loss='binary_crossentropy', optimizer="SGD")
             discriminator.load_weights(discriminator_checkpoint_file)
 
             generated_images = generator.predict(X_test, verbose=1)
             d_pret = discriminator.predict(generated_images, verbose=1)
-            index = np.arange(0, BATCH_SIZE * 20)
-            index.resize((BATCH_SIZE * 20, 1))
+            index = np.arange(0, batch_size * 20)
+            index.resize((batch_size * 20, 1))
             pre_with_index = list(np.append(d_pret, index, axis=1))
             pre_with_index.sort(key=lambda x: x[0], reverse=True)
-            nice_images = np.zeros((BATCH_SIZE, 1) + (generated_images.shape[2:]), dtype=np.float32)
-            for i in range(int(BATCH_SIZE)):
+            nice_images = np.zeros((batch_size, 1) + (generated_images.shape[2:]), dtype=np.float32)
+            for i in range(int(batch_size)):
                 idx = int(pre_with_index[i][1])
                 nice_images[i, 0, :, :] = generated_images[idx, 0, :, :]
             image = combine_images(nice_images)
@@ -277,36 +273,36 @@ def generate(test_photos_dir, output_dir, generator_checkpoint_file, discriminat
         start += len(X_test)
 
 
-def get_data_from_files(photo_file_names, sketch_file_names=None):
-    data_X = np.zeros((len(photo_file_names), 3, img_cols, img_rows))
-    data_Y = []
+# def get_data_from_files(photo_file_names, img_rows, img_cols, sketch_file_names=None):
+#     data_X = np.zeros((len(photo_file_names), 3, img_cols, img_rows))
+#     data_Y = []
+#
+#     for i in range(0, len(photo_file_names)):
+#         file_name = photo_file_names[i]
+#         data_X[i, :, :, :] = np.swapaxes(imresize(imread(file_name, mode='RGB'), (img_rows, img_cols)), 0, 2)
+#
+#     if sketch_file_names:
+#         data_Y = np.zeros((len(sketch_file_names), 3, img_cols, img_rows))
+#         for i in range(0, len(sketch_file_names)):
+#             file_name = sketch_file_names[i]
+#             data_Y[i, :, :, :] = np.swapaxes(imresize(imread(file_name, mode='RGB'), (img_rows, img_cols)), 0, 2)
+#
+#     return data_X, data_Y
 
-    for i in range(0, len(photo_file_names)):
-        file_name = photo_file_names[i]
-        data_X[i, :, :, :] = np.swapaxes(imresize(imread(file_name, mode='RGB'), (img_rows, img_cols)), 0, 2)
 
-    if sketch_file_names:
-        data_Y = np.zeros((len(sketch_file_names), 3, img_cols, img_rows))
-        for i in range(0, len(sketch_file_names)):
-            file_name = sketch_file_names[i]
-            data_Y[i, :, :, :] = np.swapaxes(imresize(imread(file_name, mode='RGB'), (img_rows, img_cols)), 0, 2)
-
-    return data_X, data_Y
-
-
-def get_data(sketchdir, cartoondir=None):
-    sketches = glob.glob(os.path.join(sketchdir, '*.png'))
-    data_X = np.zeros((len(sketches), 3, img_cols, img_rows))
-    for i in range(0, len(sketches)):
-        data_X[i, :, :, :] = np.swapaxes(imread(sketches[i], mode='RGB'), 0, 2)
-
-    data_Y = []
-    if cartoondir:
-        cartoons = glob.glob(os.path.join(cartoondir, '*.png'))
-        data_Y = np.zeros((len(cartoons), 3, img_cols, img_rows))
-        for i in range(0, len(sketches)):
-            data_Y[i, :, :, :] = np.swapaxes(imread(cartoons[i], mode='RGB'), 0, 2)
-    return data_X, data_Y
+# def get_data(sketchdir, cartoondir=None):
+#     sketches = glob.glob(os.path.join(sketchdir, '*.png'))
+#     data_X = np.zeros((len(sketches), 3, img_cols, img_rows))
+#     for i in range(0, len(sketches)):
+#         data_X[i, :, :, :] = np.swapaxes(imread(sketches[i], mode='RGB'), 0, 2)
+#
+#     data_Y = []
+#     if cartoondir:
+#         cartoons = glob.glob(os.path.join(cartoondir, '*.png'))
+#         data_Y = np.zeros((len(cartoons), 3, img_cols, img_rows))
+#         for i in range(0, len(sketches)):
+#             data_Y[i, :, :, :] = np.swapaxes(imread(cartoons[i], mode='RGB'), 0, 2)
+#     return data_X, data_Y
 
 
 if __name__ == '__main__':
@@ -334,6 +330,13 @@ if __name__ == '__main__':
     parser.add_argument('--test_photos', help='test photos directory', dest="test_photos",
                         default='../data/yearbook_test_photos')
 
+    parser.add_argument('--img_rows', help='num rows', dest="img_rows",
+                        default=64, type=int)
+    parser.add_argument('--img_cols', help='num cols', dest="img_cols",
+                        default=64, type=int)
+    parser.add_argument('--batch_size', help='batch size', dest="batch_size",
+                        default=128, type=int)
+
     args = parser.parse_args()
     print(get_time_string() + ' Args provided: ' + str(args))
 
@@ -342,5 +345,5 @@ if __name__ == '__main__':
 
     if args.train == 1:
         train(args.load_weights, args.epochs, args.init_epoch, args.train_photos, args.train_sketches, args.output_dir,
-              args.generator, args.discriminator)
-    generate(args.test_photos, args.output_dir, args.generator, args.discriminator)
+              args.generator, args.discriminator, args.img_rows, args.img_cols, args.batch_size)
+    generate(args.test_photos, args.output_dir, args.generator, args.discriminator, args.img_rows, args.img_cols, args.batch_size)
